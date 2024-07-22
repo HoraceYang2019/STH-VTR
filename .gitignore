@@ -1,2 +1,5 @@
 #cpython
 __pycache__/
+
+#vscode dir
+.vscode/
