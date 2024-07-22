@@ -196,7 +196,10 @@ class DataProcess(object):
     #%%
     def GetData(self, f_name: str) -> list[str]:
         with open(f_name, 'r') as f:
-            next(f)    #skip the first line
+            try:
+                next(f)    #skip the first line
+            except:
+                return None
             return f.readlines()
         
     def ParseData(self, f_list: list[str], 
