@@ -31,6 +31,7 @@ from scipy.signal import detrend
 import types 
 import typing
 import sys
+import platform
 
 #%%
 import STHSense_2_0 as sth       # parse sensing data from STH 
@@ -48,9 +49,11 @@ remote_stop = False
 func_name = 'DataProcess'
 data_places = 5  # data in 
 ms_places = 3    # time in ms
-# polar_folder = r'C:/VTR/RawData/Output/ToolPolar/' 
-coef_file = "/var/VTR/RawData/Source/Data/coef.csv" 
-
+# polar_folder = r'C:/VTR/RawData/Output/ToolPolar/'
+if platform.system() == "Windows":    
+    coef_file = "C:/VTR/RawData/Source/Data/coef.csv" 
+else:
+    coef_file = "/var/VTR/RawData/Source/Data/coef.csv"
 data_in_seq = True    # 
 txt_separtor = ' '
 
@@ -132,8 +135,10 @@ class DataProcess(object):
         
         def FilenameIndex(f: list) -> typing.Union[tuple[int, int], None]:
             if f:
+                target = r"[folder\\\.]" if platform.system() == "Windows" else r"[\\/\.]"
+                
                 # Get filename of the first file in this path to define the string type
-                filename_time: list[str] = re.split(r"[\\/\.]", f_list[0])
+                filename_time: list[str] = re.split(target, f_list[0])
                 
                 #time_re[-2]: filename_time;  time_[-1]: file_extension
                 file_extension: int = len(filename_time[-1]) + 1  #+1: '.'
