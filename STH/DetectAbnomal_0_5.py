@@ -13,7 +13,6 @@ Next TODO:
 '''
 #%% 
 import json
-import os
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -24,10 +23,13 @@ from fastdtw import fastdtw
 import plotly.graph_objects as pgo
 import plotly.io as pio
 import threading
-
-#%% MQTT
+import queue
 import paho.mqtt.client as mqtt
 import threading
+#%%
+
+begin = 0
+time_step = 0.0053
 
 # MQTT host的位址和埠號
 host = "localhost"
@@ -38,31 +40,33 @@ topic_csv = "STH/PDetect"
 # 標記是否開始接收pdata的訊號
 receive_pdata = False
 client = mqtt.Client()
+current_queue = queue.Queue()
 
-# 定義回調函數，當連接上MQTT host時執行
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    # 訂閱主題
     client.subscribe(topic_csv)
 
-# 定義回調函數，當接收到控制消息時執行
+# turn on handle_pdata function
 def on_message(client, userdata, msg):
     global receive_pdata
     if msg.topic == topic_csv:
         message = msg.payload.decode()
-        print(f"Received control message: {message}")
-        if message == "CMD/START":
+        if message == "CMD/start":
             receive_pdata = True
             print("Starting")
-        elif message == "CMD/END":
+        elif message == "CMD/end":
             receive_pdata = False
             print("Stopping")
 
-# 定義處理STH/pdata訊號的函數
+# collect smart tool holder signal
 def handle_pdata():
     def on_pdata_message(client, userdata, msg):
         if receive_pdata:
-            print(f"Received pdata message: {msg.payload.decode()}")
+            try:
+                data = json.loads(msg.payload.decode())
+                current_queue.put(data)
+            except json.JSONDecodeError:
+                print("Failed to decode JSON data.")
     
     pdata_client = mqtt.Client()
     pdata_client.on_message = on_pdata_message
@@ -70,6 +74,12 @@ def handle_pdata():
     pdata_client.subscribe(topic_pdata)
     pdata_client.loop_forever()
 
+def process():
+    while True:
+        if not current_queue.empty():
+            data = current_queue.get()
+            detector.Run(data)
+            
 #%% files for testing
 with open('FilePool.json', encoding="utf-8") as f:
     var = json.load(f)
@@ -132,19 +142,21 @@ class DetectAbnoraml:
         return  self.DeriveGroupMax(data_np)
 
     # base_df = BuildBaseLines(r'./rawdata/Fanuc-2/Ref/Case2-Milling.csv')
-
 #%%
-    def FindBaseIndex(self, raw_np, actual_start_time, tolerance: float = STH_interval):
-        parsed_time = np.array([self.ParseDatetime(timetag[0]) for timetag in raw_np])
-        if None in parsed_time:        return None
-
-        # derive the time in sec.
-        raw_np[:, 0] = np.array([(ctime - actual_start_time).total_seconds() for ctime in parsed_time])
-        # get the max values of each group
-        data = self.DeriveGroupMax(raw_np)
+    def TransforTime(self, data, begin, time_step):
+        if begin == 0:  
+            begin = int(data["packet_sequence_number"])
+        torque_data = data.get("Torque", [])
+        start_time = (int(data["packet_sequence_number"]) - begin) * 0.4
+        time_series = np.arange(start_time, len(torque_data) * time_step, time_step)
+        torque_with_time = np.column_stack((time_series, torque_data))
+        print(torque_with_time)
+        return torque_with_time
+#%%
+    def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
         # find the range of possible timetag
-        indexs = np.where((self.base_np[:, 0] > data[0,0] - tolerance) & (self.base_np[:, 0] < data[0,0] + tolerance))
-        return data, indexs
+        indexs = np.where((self.base_np[:, 0] > raw_np[0][0] - tolerance) & (self.base_np[:, 0] < raw_np[0][0] + tolerance))
+        return raw_np, indexs
 
     # filter_df, base_index = FindBaseIndex(base_df, raw_df, actual_start_time)
 
@@ -248,25 +260,14 @@ class DetectAbnoraml:
         else:                 # Return the HTML representation of the plot
             return pio.to_html(fig, full_html=False)
 
-    def PlotResult(self, data, start_index, end_index, sel_file):
-        plt.title(f"{sel_file}")
-        plt.plot( np.append(np.zeros(start_index),data[:,1]),'o', color = 'red', label = 'On-line')
-        plt.plot(self.base_np[:, 1], '-.', color = 'gray', label = 'Simulation', )
-        plt.plot(self.base_np[:, 2], color = 'orange', label = 'UCL')
-        plt.plot(self.base_np[:, 3], color = 'yellow', label = 'LCL')
-        plt.legend(fontsize = 12)
-        plt.xlabel(f"Samples (per {group_size} ms)", fontsize = 12)
-        plt.ylabel("Nm", fontsize = 12)
-        plt.grid()
-        plt.show()
-
 #%%
-    def Run(self, id = None, local_show: bool = True):
+    def Run(self, data, id = None, local_show: bool = True):
         # record current timestamp
         start = datetime.datetime.now()
         
         # detect abnomal
-        filter_np, base_index = self.FindBaseIndex(raw_np, self.actual_start_time)
+        raw_np = self.TransforTime(data, begin, time_step)
+        filter_np, base_index = self.FindBaseIndex(raw_np)
         start_index = int(self.FindStartIndex(filter_np, base_index))
         current_state = self.DetectCurrentState(filter_np, start_index)
 
@@ -277,7 +278,7 @@ class DetectAbnoraml:
         print(f"The time of execution of detect abnormal is : {time_used:.03f} ms")
         print(current_state)
 
-        return self.PlotlyResult(filter_np, start_index, sel_file, local_show, current_state, time_used)
+        # return self.PlotlyResult(filter_np, start_index, local_show, current_state, time_used)
 
 #%%
 if __name__ == "__main__":
@@ -290,8 +291,9 @@ if __name__ == "__main__":
     pdata_thread = threading.Thread(target=handle_pdata)
     pdata_thread.start()
 
+    process_thread = threading.Thread(target=process)
+    process_thread.start()
+
     # 連接到MQTT host並開始接收控制消息
     client.connect(host, port, 60)
     client.loop_forever()
-
-    
