@@ -376,7 +376,13 @@ class DataProcess(object):
                         except:
                             pass
                     for i in file_list:
-                        coef_exist, calbar_coef, header_mac= gcr.GetCoef(DataProcess.GetData(self, i).pop(0))
+                        try:
+                            data = DataProcess.GetData(self, i)
+                            if data != None:
+                                coef_exist, calbar_coef, header_mac = gcr.GetCoef(data.pop(0))
+                        except:
+                            coef_exist = False
+
                         if coef_exist:
                             break
                         else:

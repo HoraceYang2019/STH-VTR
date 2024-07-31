@@ -51,10 +51,10 @@ def on_message(client, userdata, msg):
     global receive_pdata
     if msg.topic == topic_csv:
         message = msg.payload.decode()
-        if message == "CMD/start":
+        if message == "{CMD:'start'}":
             receive_pdata = True
             print("Starting")
-        elif message == "CMD/end":
+        elif message == "{CMD:'start'}":
             receive_pdata = False
             print("Stopping")
 
@@ -85,8 +85,6 @@ with open('FilePool.json', encoding="utf-8") as f:
     var = json.load(f)
 
 base_file = var['base_file']
-start_file = var['start_file']
-test_dir = var['test_dir']
 group_size = var['group_size']   # how many points will be as a group
 torque_index = var['torque_index']  # the torque index of the matrix   
 scale = var['torque_scale']
@@ -143,14 +141,17 @@ class DetectAbnoraml:
 
     # base_df = BuildBaseLines(r'./rawdata/Fanuc-2/Ref/Case2-Milling.csv')
 #%%
-    def TransforTime(self, data, begin, time_step):
-        if begin == 0:  
-            begin = int(data["packet_sequence_number"])
-        torque_data = data.get("Torque", [])
-        start_time = (int(data["packet_sequence_number"]) - begin) * 0.4
-        time_series = np.arange(start_time, len(torque_data) * time_step, time_step)
+    def TransforTime(self, data, time_step):
+        global begin
+        if begin == 0:
+            begin = int(data["Packet Sequence Number"])
+        torque_data = np.array(data.get("Torque", []))
+        torque_data = torque_data * self.scale
+        start_time = (int(data["Packet Sequence Number"]) - begin) * 0.3975
+        if start_time != 0:
+            start_time = start_time + (int(data["packet_sequence_number"]) - begin) * time_step
+        time_series = np.arange(start_time, start_time + len(torque_data) * time_step, time_step)
         torque_with_time = np.column_stack((time_series, torque_data))
-        print(torque_with_time)
         return torque_with_time
 #%%
     def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
@@ -266,7 +267,7 @@ class DetectAbnoraml:
         start = datetime.datetime.now()
         
         # detect abnomal
-        raw_np = self.TransforTime(data, begin, time_step)
+        raw_np = self.TransforTime(data, time_step)
         filter_np, base_index = self.FindBaseIndex(raw_np)
         start_index = int(self.FindStartIndex(filter_np, base_index))
         current_state = self.DetectCurrentState(filter_np, start_index)
