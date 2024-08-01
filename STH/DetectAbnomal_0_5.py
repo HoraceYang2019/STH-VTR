@@ -36,6 +36,7 @@ host = "localhost"
 port = 1883
 topic_pdata = "STH/pdata"
 topic_csv = "STH/PDetect"
+topic_state = "STH/state"
 
 # 標記是否開始接收pdata的訊號
 receive_pdata = False
@@ -143,15 +144,22 @@ class DetectAbnoraml:
 #%%
     def TransforTime(self, data, time_step):
         global begin
+        torque_data = []
         if begin == 0:
             begin = int(data["Packet Sequence Number"])
-        torque_data = np.array(data.get("Torque", []))
+        torque_data = data.get("Torque", [])
         torque_data = torque_data * self.scale
         start_time = (int(data["Packet Sequence Number"]) - begin) * 0.3975
         if start_time != 0:
-            start_time = start_time + (int(data["packet_sequence_number"]) - begin) * time_step
-        time_series = np.arange(start_time, start_time + len(torque_data) * time_step, time_step)
-        torque_with_time = np.column_stack((time_series, torque_data))
+            start_time = start_time + (int(data["Packet Sequence Number"]) - begin) * time_step
+        try:
+            time_series = np.arange(start_time, start_time + len(torque_data) * time_step, time_step)
+        except:
+            time_series = np.arange(start_time, start_time + 1 * time_step, time_step)
+        try:
+            torque_with_time = np.column_stack((time_series, torque_data))
+        except:
+            torque_with_time = np.column_stack((time_series[:len(torque_data)], torque_data))
         return torque_with_time
 #%%
     def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
@@ -171,7 +179,10 @@ class DetectAbnoraml:
         }
 
         # Find the start index with the minimum DTW distance
-        start_index = min(dtw_distances, key=dtw_distances.get)
+        try:
+            start_index = min(dtw_distances, key=dtw_distances.get)
+        except:
+            start_index = 0
         return start_index
 
     # start_index = FindStartIndex(filter_df, base_index)
@@ -187,8 +198,11 @@ class DetectAbnoraml:
         lcl_slice = self.base_np[start:start + len(data), 3]  # LCL
 
         # Vectorized comparison
-        over_ucl = np.any(data_slice > ucl_slice)
-        lower_lcl = np.any(data_slice < lcl_slice)
+        try:
+            over_ucl = np.any(data_slice > ucl_slice)
+            lower_lcl = np.any(data_slice < lcl_slice)
+        except:
+            return 'normal'
 
         if over_ucl:
             return 'Over-UCL'
@@ -271,7 +285,10 @@ class DetectAbnoraml:
         filter_np, base_index = self.FindBaseIndex(raw_np)
         start_index = int(self.FindStartIndex(filter_np, base_index))
         current_state = self.DetectCurrentState(filter_np, start_index)
-
+        
+        state_meesage = json.dumps({"state": current_state})
+        client.publish(topic_state, state_meesage)
+        
         # record loop end timestamp
         end = datetime.datetime.now()
         # find difference loop start and end time and display

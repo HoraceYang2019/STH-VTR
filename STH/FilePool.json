@@ -1,5 +1,5 @@
 {
-    "base_file":  "./rawdata/ref1.csv",
+    "base_file":  "./rawdata/ref3.csv",
     "start_file": "./rawdata/TT/Ref/ref2.csv",
     "test_dir":  "./rawdata/TT/Ref/ref2.csv",
     "group_size": 10,

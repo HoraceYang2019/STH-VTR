@@ -1,0 +1,25 @@
+{
+    "Timeout": 90,
+    "T1":{
+        "mac": "7cdfa1036646",
+        "port": 6502,
+        "interval": 30
+    },
+    "T2":
+    {
+        "mac": "7cdfa1036646",
+        "port": 6502,
+        "interval": 30 
+    },
+    "T3":{
+        "mac": "7cdfa1036646",
+        "port": 6502,
+        "interval": 30 
+    },
+    "T4":
+    {
+        "mac": "7cdfa1036646",
+        "port": 6502,
+        "interval": 30 
+    }
+}

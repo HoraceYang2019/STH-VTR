@@ -9,7 +9,7 @@ Created on 2024-03-15 11:25:36
     1.  sock.accept(): when time-out happen, to show and solve it.
     2.  argument in `csock.recv` which number is better
     3.  if the csock never bind, collect thread will forever loop
-    
+        "target_STH_mac": "84f703ce2064", 
 '''
 
 #%%    Packages
