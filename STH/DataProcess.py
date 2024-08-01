@@ -31,6 +31,7 @@ from scipy.signal import detrend
 import types 
 import typing
 import sys
+import platform
 
 #%%
 import STHSense as sth       # parse sensing data from STH 
@@ -49,7 +50,10 @@ func_name = 'DataProcess'
 data_places = 5  # data in 
 ms_places = 3    # time in ms
 # polar_folder = r'C:/VTR/RawData/Output/ToolPolar/' 
-coef_file = "C:/VTR/RawData/Source/Data/coef.csv" 
+if platform.system() == "Windows":
+    coef_file = "C:/VTR/RawData/Source/Data/coef.csv"
+else:
+    coef_file = "/var/VTR/RawData/Source/Data/coef.csv"
 
 data_in_seq = True    # 
 txt_separtor = ' '
@@ -132,8 +136,10 @@ class DataProcess(object):
         
         def FilenameIndex(f: list) -> typing.Union[tuple[int, int], None]:
             if f:
+                target = r"[folder\\\.]" if platform.system() == "Windows" else r"[\\/\.]"
+
                 # Get filename of the first file in this path to define the string type
-                filename_time: list[str] = re.split(r"[folder\\\.]", f_list[0])
+                filename_time: list[str] = re.split(target, f_list[0])
                 
                 #time_re[-2]: filename_time;  time_[-1]: file_extension
                 file_extension: int = len(filename_time[-1]) + 1  #+1: '.'
@@ -340,7 +346,7 @@ class DataProcess(object):
         publish_msg = SynSTH.PublishStatus(self.broker_addr, self.broker_port, self.pdata_topic)        
         
         msg = f'Title:  {version} with role: {self.role} in Pid:{current_process().pid}'
-        os.system(msg)
+        # os.system(msg)
         ShowMsg(self.log_topic, func_name, msg) 
         
         remote_cmd = threading.Thread(target = SynSTH.RemotePars, name="Remote Cmd Thread")
@@ -421,8 +427,8 @@ class DataProcess(object):
                                 # toolpolar
                                 if max_force > self.keep_data_th:
                                     target_file = os.path.basename(file_name)
-                                    shutil.copyfile(file_name, polar_folder + target_file)
-                                    print(f'copy from {file_name} to {polar_folder + target_file}')
+                                    # shutil.copyfile(file_name, polar_folder + target_file)
+                                    # print(f'copy from {file_name} to {polar_folder + target_file}')
                                     # ctp.cmd = '-t'
                                     # ctp.CSV_file = target_file
                                     # ctp.polar_file = r't3.png'
@@ -457,7 +463,8 @@ if __name__ == "__main__":
     print(f'current separtor: {txt_separtor}')
     msg = f'{version}'
 
-    os.system('title '+ msg); print(msg)
+    # os.system('title '+ msg)
+    print(msg)
 
     p3 = DataProcess('master')
     p3.run()  # Start the Jobs process in the main process
