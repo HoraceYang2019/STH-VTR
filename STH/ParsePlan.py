@@ -1,11 +1,17 @@
 
 import json
 import pandas as pd
+import platform
 #%%
 version: str = 'ParsePlan v1.0.0'
 
 #%%
-def GetToolRelated(initSTH_u: str = '/var/VTR/InitSTH_u.json'):
+def GetToolRelated():
+    if platform.system() == "Windows":    
+        initSTH_u: str = "C:\VTR\InitSTH_u.json"  
+    else:
+        initSTH_u: str = '/var/VTR/InitSTH_u.json'
+    
     # get plan name from the updated STH JSON file
     with open(initSTH_u) as initSTH_file:
         plan_name = json.load(initSTH_file)

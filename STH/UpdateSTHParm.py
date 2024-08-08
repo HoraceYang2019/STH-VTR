@@ -9,12 +9,16 @@ import json
 import typing
 import types
 import os
+import platform
 
 #%%:
 version: str = 'UpdateSTHParm v1.0'
 
 #%%
-base_path: str = '/var/VTR/'
+if platform.system() == "Windows":
+    base_path: str = 'C:\VTR/'
+else:
+    base_path: str = '/var/VTR/'
 file_path: str = base_path + 'InitSTH.py'
 updated_file: str = base_path + 'InitSTH_u.json'
 module_name: str = ''

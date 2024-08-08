@@ -31,15 +31,14 @@ from scipy.signal import detrend
 import types 
 import typing
 import sys
-import platform
 
 #%%
-import STHSense_2_0 as sth       # parse sensing data from STH 
-import Denoise_1_1 as Denoise    # denoise of receiving data
-import UpdateSTHParm_1_0 as usp  # get the updated and init parameters 
-import STHSync_5_0 as SynSTH     # syc control of services fro STH
-# import CalToolPolar_0_1 as ctp   # calculate tool polar 
-import GetCalbraCoef_0_2 as gcr  # get the calbriation coefficients
+import STHSense as sth       # parse sensing data from STH 
+import Denoise                   # denoise of receiving data
+import UpdateSTHParm as usp  # get the updated and init parameters 
+import STHSync as SynSTH     # syc control of services fro STH
+# import CalToolPolar as ctp     # calculate tool polar 
+import GetCalbraCoef as gcr  # get the calbriation coefficients
 
 version: str = 'DataProcess v10.5.1'
 active = False
@@ -49,11 +48,9 @@ remote_stop = False
 func_name = 'DataProcess'
 data_places = 5  # data in 
 ms_places = 3    # time in ms
-# polar_folder = r'C:/VTR/RawData/Output/ToolPolar/'
-if platform.system() == "Windows":    
-    coef_file = "C:/VTR/RawData/Source/Data/coef.csv" 
-else:
-    coef_file = "/var/VTR/RawData/Source/Data/coef.csv"
+# polar_folder = r'C:/VTR/RawData/Output/ToolPolar/' 
+coef_file = "C:/VTR/RawData/Source/Data/coef.csv" 
+
 data_in_seq = True    # 
 txt_separtor = ' '
 
@@ -135,10 +132,8 @@ class DataProcess(object):
         
         def FilenameIndex(f: list) -> typing.Union[tuple[int, int], None]:
             if f:
-                target = r"[folder\\\.]" if platform.system() == "Windows" else r"[\\/\.]"
-                
                 # Get filename of the first file in this path to define the string type
-                filename_time: list[str] = re.split(target, f_list[0])
+                filename_time: list[str] = re.split(r"[folder\\\.]", f_list[0])
                 
                 #time_re[-2]: filename_time;  time_[-1]: file_extension
                 file_extension: int = len(filename_time[-1]) + 1  #+1: '.'
@@ -196,10 +191,7 @@ class DataProcess(object):
     #%%
     def GetData(self, f_name: str) -> list[str]:
         with open(f_name, 'r') as f:
-            try:
-                next(f)    #skip the first line
-            except:
-                return None
+            next(f)    #skip the first line
             return f.readlines()
         
     def ParseData(self, f_list: list[str], 
@@ -376,13 +368,7 @@ class DataProcess(object):
                         except:
                             pass
                     for i in file_list:
-                        try:
-                            data = DataProcess.GetData(self, i)
-                            if data != None:
-                                coef_exist, calbar_coef, header_mac = gcr.GetCoef(data.pop(0))
-                        except:
-                            coef_exist = False
-
+                        coef_exist, calbar_coef, header_mac= gcr.GetCoef(DataProcess.GetData(self, i).pop(0))
                         if coef_exist:
                             break
                         else:
@@ -435,8 +421,8 @@ class DataProcess(object):
                                 # toolpolar
                                 if max_force > self.keep_data_th:
                                     target_file = os.path.basename(file_name)
-                                    # shutil.copyfile(file_name, polar_folder + target_file)
-                                    # print(f'copy from {file_name} to {polar_folder + target_file}')
+                                    shutil.copyfile(file_name, polar_folder + target_file)
+                                    print(f'copy from {file_name} to {polar_folder + target_file}')
                                     # ctp.cmd = '-t'
                                     # ctp.CSV_file = target_file
                                     # ctp.polar_file = r't3.png'
@@ -457,6 +443,7 @@ class DataProcess(object):
                     
             time.sleep(self.wait_time)
             if SynSTH.close_pars: break
+            
         remote_cmd.join()
         # ctp.cmd = '-q'
         sys.exit()
@@ -470,8 +457,7 @@ if __name__ == "__main__":
     print(f'current separtor: {txt_separtor}')
     msg = f'{version}'
 
-    # os.system('title '+ msg)
-    print(msg)
+    os.system('title '+ msg); print(msg)
 
     p3 = DataProcess('master')
     p3.run()  # Start the Jobs process in the main process

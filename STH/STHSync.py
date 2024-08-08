@@ -25,8 +25,8 @@ from typing import Any, Deque, Union
 from types import ModuleType
 
 #customized functions
-import ParseData_2_1 as ParseData
-import UpdateSTHParm_1_0 as usp
+import ParseData
+import UpdateSTHParm as usp
 
 DataFormat = tuple[float, float, int]
 
@@ -56,10 +56,10 @@ close_scan, close_comm, close_pars, close_merg, close_emul = False, False, False
 loop_scan: bool = False
 timeout: int = 10
 
-func_msg = {'standby': 'reset for standby',
-            'enable': 'enable for running',
-            'close': 'close for finishing',
-            'loop': 'enable with loop',
+func_msg = {'Standby': 'reset for standby',
+            'Enable': 'enable for running',
+            'Close': 'close for finishing',
+            'Loop': 'enable with loop',
             }
 mqtt_sleep_delay: float = 0.2
 #%%
@@ -156,17 +156,17 @@ def RemoteScan():
                 cmd = str(message_payload['Func'])
                 print(f'\n[INFO]  <RemoteScan> is to {func_msg[cmd]}.')
 
-                if cmd == 'standby':
+                if cmd == 'Standby':
                     enable_scan = False
                     close_scan = False
                     loop_scan = False
-                if cmd == 'enable':
+                if cmd == 'Enable':
                     enable_scan = True
                     loop_scan = False
-                if cmd == 'loop':
+                if cmd == 'Loop':
                     enable_scan = True
                     loop_scan = True
-                if cmd == 'close':
+                if cmd == 'Close':
                     close_scan = True
                     break
             except:
@@ -187,12 +187,12 @@ def RemoteComm():
                 cmd = str(message_payload['Func'])
                 print(f'\n[INFO]  <RemoteComm> is to {func_msg[cmd]}.')
 
-                if cmd == 'standby':
+                if cmd == 'Standby':
                     enable_comm = False
                     close_comm = False
-                if cmd == 'enable':
+                if cmd == 'Enable':
                     enable_comm = True
-                if cmd == 'close':
+                if cmd == 'Close':
                     close_comm = True
                     break
             except:
@@ -212,12 +212,12 @@ def RemotePars():
             try:
                 cmd = str(message_payload['Func'])
                 print(f'\n[INFO]  <RemoteParm> is to {func_msg[cmd]}.')
-                if cmd == 'standby':
+                if cmd == 'Standby':
                     enable_pars = False
                     close_pars = False
-                if cmd == 'enable':
+                if cmd == 'Enable':
                     enable_pars = True
-                if cmd == 'close':
+                if cmd == 'Close':
                     close_pars = True
                     break
             except:
@@ -238,12 +238,12 @@ def RemoteMerge():
             try:
                 cmd = str(message_payload['Func'])
                 print(f'\n[INFO]  <RemotMerge> is to {func_msg[cmd]}.')
-                if cmd == 'standby':
+                if cmd == 'Standby':
                     enable_merg = False
                     close_merg = False
-                if cmd == 'enable':
+                if cmd == 'Enable':
                     enable_merg = True
-                if cmd == 'close':
+                if cmd == 'Close':
                     close_merg = True
                     break
             except:
@@ -264,12 +264,12 @@ def RemoteEmulate():
             try:
                 cmd = str(message_payload['Func'])
                 print(f'\n[INFO]  <RemotMerge> is to {func_msg[cmd]}.')
-                if cmd == 'standby':
+                if cmd == 'Standby':
                     enable_emul = False
                     close_emul = False
-                if cmd == 'enable':
+                if cmd == 'Enable':
                     enable_emul = True
-                if cmd == 'close':
+                if cmd == 'Close':
                     close_emul = True
                     break
             except:

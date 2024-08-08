@@ -17,7 +17,7 @@ import sys
 import time
 
 # customized functions
-import STHComm_13_r3 as STHComm
+import STHComm
 
 # Variables
 version: str = "runSTHJobs_v1_R0"

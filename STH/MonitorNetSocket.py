@@ -28,9 +28,9 @@ PacketHistoryDetailFormat = tuple[tuple[list[Iterator[int]],  #history
 T = TypeVar('T')
 DefaultType = TypeVar('DefaultType')
 
-from MonitorSysUsage_1_0 import ProcessUsage
-from MonitorSysUsage_1_0 import ProcessUsageReturnFormat, UsageFormat
-from MonitorSysUsage_1_0 import MINIMA_INTERVAL
+from MonitorSysUsage import ProcessUsage
+from MonitorSysUsage import ProcessUsageReturnFormat, UsageFormat
+from MonitorSysUsage import MINIMA_INTERVAL
 #MINIMA_INTERVAL = 0.1
 
 #%%    Variable

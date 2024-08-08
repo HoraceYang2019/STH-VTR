@@ -4,7 +4,11 @@ Created on Sun May 28 15:42:58 2023
 @author: Horace Yang
 """
 import time
-root_folder: str = '/var/VTR'               # os.getcwd()
+import platform
+if platform.system() == "Windows":
+    base_path: str = 'c:/VTR'
+else:
+    root_folder: str = '/var/VTR'               # os.getcwd()
 raw_data_folder: str = root_folder + '/RawData/Source/Data/'    #temp folder
 log_file = root_folder + '/Logs/STHUsage.log'
 
@@ -93,7 +97,7 @@ remt_merg_topic: str = 'STH/remt/merge'  # remote control for merging parsed dat
 remt_emul_topic: str = 'STH/remt/emul'   # remote control for merging parsed data
 
 sync_topic: str = 'STH/syn'              # sync control of STHs
-pdata_topic: str = 'STH/pdata'           # STH parsed data message from STH
+pdata_topic: str = 'STH/Pdata'           # STH parsed data message from STH
 log_topic: str = 'STH/log'               # Log message of functions
 scan_topic: str = 'STH/scan'             # scan results of STHs
 emul_topic: str = 'STH/emul'             # emulation output of historical STH

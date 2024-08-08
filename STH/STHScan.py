@@ -25,9 +25,9 @@ import types
 import os 
 
 #customerized functions
-import SystemCheck_3_1_0 as sc
-import UpdateSTHParm_1_0 as usp
-import STHSync_5_0 as SynSTH # import STHSync_4_2_3 as SynSTH
+import SystemCheck as sc
+import UpdateSTHParm as usp
+import STHSync as SynSTH
 
 # In[1]
 def SetParameter(set_p: typing.Union[types.ModuleType, typing.Any]):  #Any -> toUpdate    

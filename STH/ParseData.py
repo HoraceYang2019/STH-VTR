@@ -16,10 +16,10 @@ from scipy import signal  # type: ignore
 from typing import Callable, Any, Callable, Union
 
 #customized functions
-import Denoise_1_1 as Denoise
-import STHSense_2_0 as STHSense
-import InitCollection_1_0 as InitCollection
-import UpdateSTHParm_1_0 as usp
+import Denoise
+import STHSense
+import InitCollection
+import UpdateSTHParm as usp
 
 DataFormat = npt.NDArray[np.float64]
 

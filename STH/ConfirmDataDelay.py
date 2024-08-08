@@ -43,8 +43,8 @@ import operator
 import pandas as pd   # type: ignore
 import pathlib
 
-import HeaderSplit_4_1_1 as HeaderSplit
-import STHSense_2_0 as STHS
+import HeaderSplit
+import STHSense as STHS
 
 from typing import Any, Callable, Generator, Iterator, Optional, Sequence, Union
 DataFrameFormat = tuple[str, datetime.datetime, int, float, str, int, int, int]

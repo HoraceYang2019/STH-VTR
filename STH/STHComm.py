@@ -37,17 +37,17 @@ import platform
 from multiprocessing.sharedctypes import Synchronized, SynchronizedBase
 from typing import Match
 from typing import Any, Callable, Deque, Optional, Union
-version: str = "STHComm v13.R2"
+version: str = "STHComm v13.R3"
 
 # customized functions
-import HeaderSplit_4_1_1 as HeaderSplit
+import HeaderSplit
 
-import Printer_1_0 as Printer
-import STHSync_5_0 as SynSTH
-import UpdateSTHParm_1_0 as usp
+import Printer
+import STHSync as SynSTH
+import UpdateSTHParm as usp
 
-from MonitorNetSocket_1_0 import PacketLoss
-from MonitorSysUsage_1_0 import ProcessUsage, save_usage
+from MonitorNetSocket import PacketLoss
+from MonitorSysUsage import ProcessUsage, save_usage
 
 messageType = tuple[str, datetime.datetime]
 #SharedFlag = Synchronized

@@ -30,7 +30,7 @@ from typing import Any, Callable, Deque, Iterator, Sequence, Optional
 from typing import NamedTuple
 from types import ModuleType
 
-from ConfirmDataDelay_1_0 import CheckOutputPath
+from ConfirmDataDelay import CheckOutputPath
 from IsDataclassProtocol import IsDataclass
 
 UsageFormat = tuple[float, ...]

@@ -10,19 +10,19 @@ version: str = 'GetCalbraCoef v0.2'
 import functools
 import pathlib
 import pandas as pd
-#import win32api
+import win32api
 from typing import Callable, Optional, Union
 from typing import cast
 
 #%%
-import HeaderSplit_4_1_1 as hds
-import ParsePlan_0_1 as pp
+import HeaderSplit as hds
+import ParsePlan as pp
 
 #%%    Variable
-default_path: str = r"/var/VTR/RawData/Coefficient"
+default_path: str = r"C:/VTR/RawData/Coefficient"
 default_file: str = "AvailableSTH.csv"
 
-filepath: str = r"/var/VTR/RawData/Source/Data"
+filepath: str = r"C:/VTR/RawData/Source/Data"
 filename: str = "coef"
 file_extension: str = ".csv"
 
@@ -132,7 +132,7 @@ def GetSettingCoef(f: pathlib.Path) -> tuple[Optional[tuple[float, ...]], ...]:
         print(err)
         return (None, None)
     except Exception:
-        # win32api.ShellExecute(0, 'open', 'notepad.exe', str(f), '', 1)
+        win32api.ShellExecute(0, 'open', 'notepad.exe', str(f), '', 1)
         """
         pyautogui
         """

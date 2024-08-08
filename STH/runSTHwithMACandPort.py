@@ -11,7 +11,7 @@ import time
 
 from typing import Hashable, Optional, Sequence
 
-import STHComm_13_r1 as STHComm
+import STHComm
 
 ConnectionFormat = tuple[ctypes.c_bool, STHComm.CommunicationModule]
     
