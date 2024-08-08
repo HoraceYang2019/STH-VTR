@@ -17,7 +17,7 @@ import sys
 import time
 
 # customized functions
-import STHComm_13_r2 as STHComm
+import STHComm_13_r3 as STHComm
 
 # Variables
 version: str = "runSTHJobs_v1_R0"
@@ -46,9 +46,9 @@ def set_connection(mac: str, port: str) -> ConnectionFormat:
 def establish_connection(parameter: ConnectionFormat,
                         est_interval: float) -> float:
     connected_state, module_setup = parameter
-
+     
     stop_event: ctypes.c_bool = mp.Value(ctypes.c_bool, False, lock=False)
-    # mp.set_start_method('spawn', True)
+
     process: mp.Process = mp.Process(
     None, STHComm.RemoteCtl, module_setup.mac,
         (connected_state, module_setup, stop_event)
@@ -57,6 +57,9 @@ def establish_connection(parameter: ConnectionFormat,
     process.start() # start a process
     try_connect_time: float = time.time()
     interval_start_time = try_connect_time
+    
+    # TODO
+    # send    MQTT Topic: STH/remt/comm {"Func": "Enable"}
 
     connect_timeout: bool = False 
     while not connected_state.value:
@@ -64,12 +67,33 @@ def establish_connection(parameter: ConnectionFormat,
         if (time.time() - try_connect_time) > max_timeout:
             connect_timeout  = True  # exceed the specified timeout
             break 
-    
+    # TODO  
+    # send  MQTT Topic: STH/RDY {"Ready": "1"}
+    # If reference
+    #     send  MQTT Topic: STH/remt/record {"State": "1"}
+    # If monitor
+    #     send  MQTT Topic: STH/PDetect   {"Cmd": "Start"}
+
+           
     if not connect_timeout: # the assigned job is executed
-        interval_start_time: float = time.time()  
+        interval_start_time: float = time.time()
+
         while time.time() - interval_start_time < est_interval:
+            # TODO 
+            # listen  MQTT Topic: STH/CNC {"Cycle": "End"}  
+            # If reference
+            #     send  MQTT Topic: STH/remt/record {"State": "0"}
+            #     break the while loop
+            # If monitor
+            #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"}   
+            #     complete_job = True
+            #     break the while loop 
             time.sleep(1) # wait for completion of the threads of STHComm
-    
+
+            # TODO
+            # listen MQTT Topic: STH/CNC {"SpdTool": {"TCode": /int/,  "RUL": /int/}}
+            # if Tcode is changed -> break the while loop    
+
     actual_interval: float = time.time() - interval_start_time
     stop_event.value = True # a signal to stop a process
 
@@ -96,8 +120,12 @@ def runJobs(job_file: str = job_file_name) -> float:
     run_time: list = []
 
     max_timeout = jobs['Timeout'] # get max_timeout from JSON file
-    del jobs['Timeout']           
+    del jobs['Timeout']  
 
+    # TODO
+    # listen  MQTT Topic: STH/CNC {"Cycle": "Start"}      
+    # cycle_start.wait()
+     
     for tool_no in jobs.keys():   # focus on different jobs by tool ID 
         # get taget mac, port, and defualt interval time by Tool ID
         
@@ -109,6 +137,18 @@ def runJobs(job_file: str = job_file_name) -> float:
             set_connection(mac,port), interval), 4)) 
 
         print(f'{run_time = }') 
+        # TODO
+        # if Tcode is changed
+        #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"} 
+        #     send  MQTT Topic: STH/remt/comm {"Func": "Disable"}
+        # If monitor and complete_job
+        #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"}
+        #     send  MQTT Topic: STH/remt/comm {"Func": "Disable"} 
+        #     return  amount_processing_time 
+        # If reference
+        #     merge files
+        #     return amount_processing_time
+
     # summarize the total processing time
     print(f'Sum: {(amount_processing_time := sum(run_time)):.3f}')
         
@@ -123,6 +163,7 @@ class STH_Jobs(mp.Process):
     def run(self) -> float:
         print('[TRAC]  Running subprocess:', os.getpid(), os.getppid())
         # run the jobs in the job file
+        
         runJobs(self.job_file)
         print('Subprocess:', os.getpid(), os.getppid())
 
@@ -131,13 +172,20 @@ def main():
     """     if not hasattr(sys, 'frozen'):
         mutex = create_mutex(version) """
     # Check for existing mutex
-    mutex = create_mutex(version)
 
-    p = STH_Jobs(job_file_name)   #Create an instance of class STH_Jobs 
-    
+    # TODO 
+    # listen  MQTT Topic: STH/JOB {"Mode": "Monitor/Reference"}  
+    # job_mode.wait()
+   
+    mutex = create_mutex(version)
+    p = STH_Jobs(job_file_name)   #Create an instance of class STH_Jobs
+  
     print("Starting subprocess.")
     p.start()
     p.join() 
+
+    # TODO 
+    # send    MQTT Topic: STH/remt/comm {"Func": "Disable"}
     print('Main process:', os.getpid())
 
     # Release the mutex when the application exits
@@ -145,16 +193,7 @@ def main():
     ctypes.windll.kernel32.ReleaseMutex(mutex)    
 
 #%%    Main
-if __name__ == '__main__':
-    # Set start method to 'spawn' to prevent re-executing the main script in child processes
-    #      mp.set_start_method('spawn')
-    #if mp.current_process().name == 'MainProcess':
-    #    main()
-    #else:
-    #    print('[Note]  Another instance is terminated.') 
-    
-    # Set start method to 'spawn' to prevent re-executing the main script in child processes
-    
+if __name__ == '__main__':   
     mp.set_start_method('spawn', force=True)
 
 #     Ensure that sys.argv[0] is correct for the frozen executable
