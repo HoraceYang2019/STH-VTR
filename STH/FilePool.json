@@ -1,0 +1,9 @@
+{
+    "base_file":  "./rawdata/ref3.csv",
+    "start_file": "./rawdata/TT/Ref/ref2.csv",
+    "test_dir":  "./rawdata/TT/Ref/ref2.csv",
+    "group_size": 10,
+    "torque_index": 1,
+    "torque_scale": 1,
+    "STH_interval": 0.4 
+}
