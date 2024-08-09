@@ -9,7 +9,6 @@ Change items:
 1. for test
 
 Next TODO:
-
 '''
 #%% 
 import json
@@ -27,25 +26,24 @@ import queue
 import paho.mqtt.client as mqtt
 import threading
 #%%
-
 begin = 0
 time_step = 0.0053
-
 # MQTT host的位址和埠號
-host = "localhost"
+S_host = "localhost"
+P_host = "localhost"
 port = 1883
 topic_pdata = "STH/pdata"
-topic_csv = "STH/PDetect"
+topic_csv = "STH/Pdetect"
+topic_alm = "STH/alarm"
 topic_state = "STH/state"
 
-# 標記是否開始接收pdata的訊號
 receive_pdata = False
 client = mqtt.Client()
 current_queue = queue.Queue()
-
+#%%
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    client.subscribe(topic_csv)
+    client.subscribe([(topic_csv, 0), (topic_pdata, 0)])
 
 # turn on handle_pdata function
 def on_message(client, userdata, msg):
@@ -55,10 +53,10 @@ def on_message(client, userdata, msg):
         if message == "{CMD:'start'}":
             receive_pdata = True
             print("Starting")
-        elif message == "{CMD:'start'}":
+        elif message == "{CMD:'end'}":
             receive_pdata = False
+            begin = 0
             print("Stopping")
-
 # collect smart tool holder signal
 def handle_pdata():
     def on_pdata_message(client, userdata, msg):
@@ -68,19 +66,16 @@ def handle_pdata():
                 current_queue.put(data)
             except json.JSONDecodeError:
                 print("Failed to decode JSON data.")
-    
     pdata_client = mqtt.Client()
     pdata_client.on_message = on_pdata_message
-    pdata_client.connect(host, port, 60)
+    pdata_client.connect(S_host, port, 60)
     pdata_client.subscribe(topic_pdata)
     pdata_client.loop_forever()
-
 def process():
     while True:
         if not current_queue.empty():
-            data = current_queue.get()
-            detector.Run(data)
-            
+            detector.Run(current_queue.get())
+
 #%% files for testing
 with open('FilePool.json', encoding="utf-8") as f:
     var = json.load(f)
@@ -90,7 +85,7 @@ group_size = var['group_size']   # how many points will be as a group
 torque_index = var['torque_index']  # the torque index of the matrix   
 scale = var['torque_scale']
 STH_interval = var['STH_interval']
-
+minmum_power = var['minmum_power']
 #%%
 class DetectAbnoraml:
     def __init__(self, scale:int = scale, max_time_len:int = 26):
@@ -127,48 +122,47 @@ class DetectAbnoraml:
         # sel_window: window點取max
         df = pd.read_csv(ref_file)
         data_np = df.to_numpy()  # 342565 X 4
-        data_np[:, 1] = data_np[:, 1] * self.scale 
-
+        data_np[:, 1] = data_np[:, 1] * self.scale
         # Parse the initial reference start time
         ref_start_time = self.ParseDatetime(data_np[0][0])  # (2024,6,21,15,27,58, 916003)
         if ref_start_time is None:             return None
-        
         # Vectorized datetime parsing and time difference calculation
         parsed_time = np.array([self.ParseDatetime(timetag[0]) for timetag in data_np]) #  342565
         if None in parsed_time:        return None
-        
         data_np[:, 0] = np.array([(ctime - ref_start_time).total_seconds() for ctime in parsed_time])
         return  self.DeriveGroupMax(data_np)
 
     # base_df = BuildBaseLines(r'./rawdata/Fanuc-2/Ref/Case2-Milling.csv')
+#%% low power
+    def Serch_Power(self, data):
+        power_data = float(data.get("power"))
+        if power_data < minmum_power:
+            message = "lower_power"
+            return self.Alarm(topic_alm, message)
 #%%
     def TransforTime(self, data, time_step):
         global begin
-        torque_data = []
         if begin == 0:
-            begin = int(data["Packet Sequence Number"])
-        torque_data = data.get("Torque", [])
+            begin = int(data["packet_sequence_number"])
+        torque_data = np.array(data.get("Torque", []))
         torque_data = torque_data * self.scale
-        start_time = (int(data["Packet Sequence Number"]) - begin) * 0.3975
-        if start_time != 0:
-            start_time = start_time + (int(data["Packet Sequence Number"]) - begin) * time_step
-        try:
-            time_series = np.arange(start_time, start_time + len(torque_data) * time_step, time_step)
-        except:
-            time_series = np.arange(start_time, start_time + 1 * time_step, time_step)
-        try:
-            torque_with_time = np.column_stack((time_series, torque_data))
-        except:
-            torque_with_time = np.column_stack((time_series[:len(torque_data)], torque_data))
+        start_time = (int(data["packet_sequence_number"]) - begin) * 0.3975
+        time_series_length = len(torque_data)
+        end_time = start_time + (time_series_length - 1) * time_step
+        time_series = np.linspace(start_time, end_time, time_series_length)
+        torque_with_time = np.column_stack((time_series, torque_data))
         return torque_with_time
 #%%
     def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
+        index = raw_np[0][0]
         # find the range of possible timetag
-        indexs = np.where((self.base_np[:, 0] > raw_np[0][0] - tolerance) & (self.base_np[:, 0] < raw_np[0][0] + tolerance))
+        while index > self.base_np[1127, 0]:
+            index = index - self.base_np[1127, 0]
+        index = index + self.base_np[400, 0]
+        indexs = np.where((self.base_np[:, 0] > index - tolerance) & (self.base_np[:, 0] < index + tolerance)) 
         return raw_np, indexs
 
     # filter_df, base_index = FindBaseIndex(base_df, raw_df, actual_start_time)
-
 #%%    
     def FindStartIndex(self, data, indexs):
         length, _ = data.shape
@@ -177,33 +171,27 @@ class DetectAbnoraml:
             str(index): fastdtw(data[:, torque_index], self.base_np[index: index + length, torque_index], dist=man_dist)[0]
             for index in indexs[0]
         }
-
         # Find the start index with the minimum DTW distance
         try:
             start_index = min(dtw_distances, key=dtw_distances.get)
         except:
-            start_index = 0
+            start_index = dtw_distances.get
         return start_index
 
     # start_index = FindStartIndex(filter_df, base_index)
-
 #%%
     def DetectCurrentState(self, data, start):
         # Initialize the state
         state = 'Normal'  # Initial state
-
         # Extract the relevant data slices
         data_slice = data[:, 1]                               # Torque
         ucl_slice = self.base_np[start:start + len(data), 2]  # UCL
         lcl_slice = self.base_np[start:start + len(data), 3]  # LCL
-
+        if len(ucl_slice) < len(data_slice):
+            data_slice = data_slice[:len[ucl_slice]]
         # Vectorized comparison
-        try:
-            over_ucl = np.any(data_slice > ucl_slice)
-            lower_lcl = np.any(data_slice < lcl_slice)
-        except:
-            return 'normal'
-
+        over_ucl = np.any(data_slice > ucl_slice)
+        lower_lcl = np.any(data_slice < lcl_slice)
         if over_ucl:
             return 'Over-UCL'
         elif lower_lcl:
@@ -274,21 +262,25 @@ class DetectAbnoraml:
             fig.show()
         else:                 # Return the HTML representation of the plot
             return pio.to_html(fig, full_html=False)
-
+#%%
+    def Alarm(self, topic, message):
+        publish_client = mqtt.Client()
+        publish_client.connect(P_host, 1883, 60)
+        publish_client.publish(topic, message)
+        publish_client.disconnect()
 #%%
     def Run(self, data, id = None, local_show: bool = True):
         # record current timestamp
         start = datetime.datetime.now()
         
+        self.Serch_Power(data)
         # detect abnomal
         raw_np = self.TransforTime(data, time_step)
         filter_np, base_index = self.FindBaseIndex(raw_np)
         start_index = int(self.FindStartIndex(filter_np, base_index))
         current_state = self.DetectCurrentState(filter_np, start_index)
-        
         state_meesage = json.dumps({"state": current_state})
         client.publish(topic_state, state_meesage)
-        
         # record loop end timestamp
         end = datetime.datetime.now()
         # find difference loop start and end time and display
@@ -297,14 +289,12 @@ class DetectAbnoraml:
         print(current_state)
 
         # return self.PlotlyResult(filter_np, start_index, local_show, current_state, time_used)
-
 #%%
 if __name__ == "__main__":
     detector = DetectAbnoraml()
     # 初始化MQTT Client
     client.on_connect = on_connect
     client.on_message = on_message
-
     # 啟動處理STH/pdata訊號的執行緒
     pdata_thread = threading.Thread(target=handle_pdata)
     pdata_thread.start()
@@ -313,5 +303,5 @@ if __name__ == "__main__":
     process_thread.start()
 
     # 連接到MQTT host並開始接收控制消息
-    client.connect(host, port, 60)
+    client.connect(S_host, port, 60)
     client.loop_forever()
