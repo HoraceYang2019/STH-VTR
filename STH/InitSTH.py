@@ -6,7 +6,7 @@ Created on Sun May 28 15:42:58 2023
 import time
 import platform
 if platform.system() == "Windows":
-    base_path: str = 'c:/VTR'
+    root_folder: str = 'c:/VTR'
 else:
     root_folder: str = '/var/VTR'               # os.getcwd()
 raw_data_folder: str = root_folder + '/RawData/Source/Data/'    #temp folder
