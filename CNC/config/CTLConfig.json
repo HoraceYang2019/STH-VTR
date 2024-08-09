@@ -1,0 +1,11 @@
+{
+    "IP_ADDRESS" : "169.254.146.85",
+    "MQTT_HOST" : "127.0.0.1",
+    "CYCLE_START_TOPIC" : "STH/PDetect",
+    "STATUS_TOPIC" : "STH/CNC",
+    "READY_TOPIC" : "STH/SYN",
+    "SAVE_DIR" : "./jsonlog",
+    "CURRENT_LIFE" : 2103,
+    "MAX_LIFE" : 2104,
+    "MQTT_PORT" : 1883
+}
