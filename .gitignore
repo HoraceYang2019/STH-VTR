@@ -1,5 +1,9 @@
-#cpython
+# cpython
 __pycache__/
 
-#vscode dir
+# vscode dir
 .vscode/
+
+# CNC
+CNC/config/*.dll
+CNC/jsonlog/

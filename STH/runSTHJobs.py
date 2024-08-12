@@ -124,7 +124,7 @@ def establish_connection(parameter: ConnectionFormat,
     if job_mode == 'Reference':
         STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
     elif job_mode == 'Monitor':
-        STHClient.publish(remt_recd_topic, "{'Cmd':'Start'}", qos)
+        STHClient.publish(sth_detect_topic, "{'Cmd':'Start'}", qos)
            
     if not connect_timeout: # the assigned job is executed
         interval_start_time: float = time.time()
@@ -252,7 +252,7 @@ def main():
     # TODO 
     # listen  MQTT Topic: STH/JOB {"Mode": "Monitor/Reference"}  
     # job_mode.wait()
-    while cycle_state == '':
+    while job_mode == '':
         time.sleep(check_interval)
    
     mutex = create_mutex(version)

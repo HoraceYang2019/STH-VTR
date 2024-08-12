@@ -99,13 +99,13 @@ class CtlMotion(threading.Thread):
                 if syntecremotecnc.READ_status()[5] == 'START':
                     print('CycleStart!')
                     self.dclass.cycle_start_event.set()
-                    msg = {"Cmd": 'Start'}
+                    msg = {"Cycle": 'Start'}
                     jmsg = json.dumps(msg, ensure_ascii=False)
                     publish.single(config_['CYCLE_START_TOPIC'], 
                                    jmsg, 
                                    hostname= config_['MQTT_HOST']
                                    )
-                    if self.dclass.ready_type['State'] == 0:
+                    if self.dclass.ready_type['Ready'] == '0':
                         np.int16(syntecremotecnc.WRITE_plc_addr(
                         'I',114,114,0,np.bytes_(np.array([255])),
                         np.bytes_(np.array([],dtype=np.int16)),
@@ -127,24 +127,24 @@ class CtlMotion(threading.Thread):
                     print('SingleBlock!')
                     self.dclass.cycle_start_event.clear()
                     # self.dclass.init_status_event.set()
-                    msg = {"Cmd": 'Stop'}
+                    msg = {"Cycle": 'End'}
                     jmsg = json.dumps(msg, ensure_ascii = False)
                     publish.single(config_['CYCLE_START_TOPIC'], 
                                    jmsg, 
                                    hostname= config_['MQTT_HOST']
                                    )
-                    self.dclass.ready_type = {'State': 0}
+                    self.dclass.ready_type = {'Ready': '0'}
                 else:
                     print('CycleEnd!')
                     self.dclass.cycle_start_event.clear()
                     # self.dclass.init_status_event.set()
-                    msg = {"Cmd": 'Stop'}
+                    msg = {"Cycle": 'End'}
                     jmsg = json.dumps(msg, ensure_ascii = False)
                     publish.single(config_['CYCLE_START_TOPIC'], 
                                    jmsg, 
                                    hostname= config_['MQTT_HOST']
                                    ) 
-                    self.dclass.ready_type = {'State': 0}                       
+                    self.dclass.ready_type = {'Ready': '0'}                       
                 machine_state =  syntecremotecnc.READ_status()[5]
             time.sleep(0.5)
     def CheckTcode(self):

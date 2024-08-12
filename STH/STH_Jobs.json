@@ -1,25 +1,25 @@
 {
-    "Timeout": 90,
+    "Timeout": 900,
     "T1":{
-        "mac": "84f703ce235e",
-        "port": 6502,
-        "interval": 30
+        "mac": "84f703ce2d10",
+        "port": 6501,
+        "interval": 600
     },
     "T2":
     {
-        "mac": "84f703ce235e",
-        "port": 6502,
-        "interval": 30 
+        "mac": "84f703ce2d10",
+        "port": 6501,
+        "interval": 600 
     },
     "T3":{
-        "mac": "84f703ce235e",
-        "port": 6502,
-        "interval": 30 
+        "mac": "84f703ce2d10",
+        "port": 6501,
+        "interval": 600 
     },
     "T4":
     {
-        "mac": "84f703ce235e",
-        "port": 6502,
-        "interval": 30 
+        "mac": "84f703ce2d10",
+        "port": 6501,
+        "interval": 600
     }
 }

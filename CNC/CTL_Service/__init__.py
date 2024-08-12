@@ -12,4 +12,4 @@ class ShareVar():
         self.buffer = [[],[]]
         self.buffer_index = 0
         self.save_index = 0
-        self.ready_type = {'State': 0}
+        self.ready_type = {'Ready': '0'}

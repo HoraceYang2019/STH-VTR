@@ -137,7 +137,7 @@ class CtlComm(threading.Thread):
             msg_byte = ready_msg.payload 
             byte_decode = msg_byte.decode("utf-8")
             self.dclass.ready_type = ast.literal_eval(byte_decode)
-            if self.dclass.ready_type['State'] == 1:
+            if self.dclass.ready_type['Ready'] == '1':
                 syntecremotecnc.WRITE_plc_addr('R',
                                                65,
                                                65,
