@@ -32,13 +32,6 @@ group Record Reference
         end note
     activate STH.JOB
 
-    STH.JOB -> STH.COM: enable communicate
-        note right
-        MQTT Topic: STH/remt/comm
-        {"Func": "Enable"}
-        end note 
-    activate STH.COM
-
     CNC -> STH.CTL: cycle start
     activate CNC
     
@@ -47,6 +40,13 @@ group Record Reference
         MQTT Topic: STH/CNC
         {"Cycle": "Start"}
         end note
+    STH.JOB -> STH.COM: enable communicate
+        note right
+        MQTT Topic: STH/remt/comm
+        {"Func": "Enable"}
+        end note 
+    activate STH.COM
+
     STH.JOB -> STH.CTL: check STH for linking
         note right
         MQTT Topic: STH/RDY
@@ -118,13 +118,6 @@ group Monitoring
         end note
     activate STH.JOB
     
-    STH.JOB -> STH.COM: enable communicate
-        note right
-        MQTT Topic: STH/remt/comm
-        {"Func": "Enable"}
-        end note  
-    activate STH.COM
-
     STH.CTL --> VTR: publish CNC status at inital
         note right
         MQTT Topic: STH/CNC
@@ -159,6 +152,13 @@ group Monitoring
         MQTT Topic: STH/CNC
         {"Cycle": "Start"}
         end note  
+    STH.JOB -> STH.COM: enable communicate
+        note right
+        MQTT Topic: STH/remt/comm
+        {"Func": "Enable"}
+        end note  
+    activate STH.COM
+    
     STH.JOB -> STH.CTL: check STH for linking
         note right
         MQTT Topic: STH/RDY

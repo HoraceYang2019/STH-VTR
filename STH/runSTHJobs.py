@@ -62,14 +62,13 @@ def create_mutex(mutex_name):
 
 #%%    Functions
 def get_STHJOB():
-    global job_mode
     while True:
         msg = sub.simple(sth_job_topic, hostname=host, port=portNo, qos=qos)
         job_dict = dict(eval(msg.payload.decode('utf-8')))
-        job_mode = job_dict['Mode']
+        with shared_dict['lock']:
+            shared_dict['job_mode'] = job_dict['Mode']
 
 def get_STHCNC():
-    global cycle_state, tool_changed
     while True:
         msg = sub.simple(sth_cnc_topic, hostname=host, port=portNo, qos=qos)
         cnc_dict = dict(eval(msg.payload.decode('utf-8')))
@@ -77,11 +76,14 @@ def get_STHCNC():
         if len(cncKey) == 1:
             if cncKey[0] == 'Cycle':
                 if cnc_dict['Cycle'] == 'Start':
-                    cycle_state = True
+                    with shared_dict['lock']:
+                        shared_dict['cycle_state'] = True
                 elif cnc_dict['Cycle'] == 'End':
-                    cycle_state = False
+                    with shared_dict['lock']:
+                        shared_dict['cycle_state'] = False
             elif cncKey[0] == 'SpdTool':
-                tool_changed = True
+                with shared_dict['lock']:
+                    shared_dict['tool_changed'] = True
 
 def set_connection(mac: str, port: str) -> ConnectionFormat:
     assert isinstance(port, str)
@@ -99,13 +101,13 @@ def establish_connection(parameter: ConnectionFormat,
     None, STHComm.RemoteCtl, module_setup.mac,
         (connected_state, module_setup, stop_event)
         )
-    process.daemon: bool = True  # Set the process as a daemon
+    process.daemon = True  # Set the process as a daemon
     process.start() # start a process
     try_connect_time: float = time.time()
     interval_start_time = try_connect_time
     
     # TODO
-    # send    MQTT Topic: STH/remt/comm {"Func": "Enable"}
+    # send comm Enable
     STHClient.publish(remt_comm_topic, '{"Func":"Enable"}', qos)
 
     connect_timeout: bool = False 
@@ -114,49 +116,49 @@ def establish_connection(parameter: ConnectionFormat,
         if (time.time() - try_connect_time) > max_timeout:
             connect_timeout  = True  # exceed the specified timeout
             break 
-    # TODO  
-    # send  MQTT Topic: STH/RDY {"Ready": "1"}
-    # If reference
-    #     send  MQTT Topic: STH/remt/record {"State": "1"}
-    # If monitor
-    #     send  MQTT Topic: STH/PDetect   {"Cmd": "Start"}
-    STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
-    if job_mode == 'Reference':
-        STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
-    elif job_mode == 'Monitor':
-        STHClient.publish(sth_detect_topic, "{'Cmd':'Start'}", qos)
            
     if not connect_timeout: # the assigned job is executed
+        # TODO
+        # success communicate send ready and start (record or detect) 
+        STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
+        if shared_dict['job_mode'] == 'Reference':
+            STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
+        elif shared_dict['job_mode'] == 'Monitor':
+            STHClient.publish(sth_detect_topic, "{'Cmd':'Start'}", qos)
+
         interval_start_time: float = time.time()
 
         while time.time() - interval_start_time < est_interval:
-            # TODO 
-            # listen  MQTT Topic: STH/CNC {"Cycle": "End"}  
-            # If reference
-            #     send  MQTT Topic: STH/remt/record {"State": "0"}
-            #     break the while loop
-            # If monitor
-            #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"}   
-            #     complete_job = True
-            #     break the while loop
-            while cycle_state != False:
-                time.sleep(check_interval)
-            if job_mode == 'Reference':
-                STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
-                break
-            elif job_mode == 'Monitor':
-                STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-                complete_job = True     #??
-                break
-                
-            time.sleep(1) # wait for completion of the threads of STHComm
-
             # TODO
-            # listen MQTT Topic: STH/CNC {"SpdTool": {"TCode": /int/,  "RUL": /int/}}
-            # if Tcode is changed -> break the while loop    
-            if tool_changed == True:    #??
-                tool_changed = False
+            # tool changed end
+            # if tool changed    
+            if shared_dict['tool_changed'] == True:
+                if shared_dict['job_mode'] == 'Reference':
+                    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+                elif shared_dict['job_mode'] == 'Monitor':
+                    STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
+                STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
+                shared_dict['tool_changed'] = False
                 break
+            
+            # TODO 
+            # cycle end
+            # if cycle end
+            if shared_dict['cycle_state'] == False:
+                if shared_dict['job_mode'] == 'Reference':
+                    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+                    break
+                elif shared_dict['job_mode'] == 'Monitor':
+                    STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
+                    shared_dict['complete_job'] = True
+                    break
+
+            time.sleep(1) # wait for completion of the threads of STHComm
+    # TODO
+    # normal end
+    # stop recd and comm
+    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+    STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
 
     actual_interval: float = time.time() - interval_start_time
     stop_event.value = True # a signal to stop a process
@@ -174,7 +176,7 @@ def establish_connection(parameter: ConnectionFormat,
     return actual_interval
 
 #%%
-def runJobs(job_file: str = job_file_name) -> float:
+def runJobs(shared_dict, job_file: str = job_file_name) -> float:
     import json
 
     print(f'Running job with file: {job_file}')    
@@ -187,10 +189,9 @@ def runJobs(job_file: str = job_file_name) -> float:
     del jobs['Timeout']  
 
     # TODO
-    # listen  MQTT Topic: STH/CNC {"Cycle": "Start"}      
-    # cycle_start.wait()
-    while cycle_state != True:
-        time.sleep(check_interval)
+    # wait until cycle start send
+    while shared_dict['cycle_state'] != True:
+        time.sleep(shared_dict['check_interval'])
      
     for tool_no in jobs.keys():   # focus on different jobs by tool ID 
         # get taget mac, port, and defualt interval time by Tool ID
@@ -204,26 +205,11 @@ def runJobs(job_file: str = job_file_name) -> float:
 
         print(f'{run_time = }') 
         # TODO
-        # if Tcode is changed
-        #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"} 
-        #     send  MQTT Topic: STH/remt/comm {"Func": "Disable"}
-        # If monitor and complete_job
-        #     send  MQTT Topic: STH/PDetect  {"Cmd": "End"}
-        #     send  MQTT Topic: STH/remt/comm {"Func": "Disable"} 
-        #     return  amount_processing_time 
-        # If reference
-        #     merge files
-        #     return amount_processing_time
-        if tool_changed == True:
-            STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-            STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
-        if job_mode == 'Monitor' and complete_job:      #??
-            STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-            STHClient.publish(remt_comm_topic, "{'Cmd':'Close'}", qos)
-        if job_mode == 'Reference':
+        if shared_dict['job_mode'] == 'Reference':
             # merge files
             return amount_processing_time
-        
+        elif shared_dict['job_mode'] == 'Monitor':
+            STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
 
     # summarize the total processing time
     print(f'Sum: {(amount_processing_time := sum(run_time)):.3f}')
@@ -231,16 +217,17 @@ def runJobs(job_file: str = job_file_name) -> float:
     return amount_processing_time
 
 class STH_Jobs(mp.Process):
-    def __init__(self, job_file):
+    def __init__(self, job_file, shared_dict):
         super().__init__()
         self.job_file = job_file
+        self.shared_dict = shared_dict
 
     #%%
     def run(self) -> float:
         print('[TRAC]  Running subprocess:', os.getpid(), os.getppid())
         # run the jobs in the job file
         
-        runJobs(self.job_file)
+        runJobs(self.shared_dict, self.job_file)
         print('Subprocess:', os.getpid(), os.getppid())
 
 def main():
@@ -249,22 +236,18 @@ def main():
         mutex = create_mutex(version) """
     # Check for existing mutex
 
-    # TODO 
-    # listen  MQTT Topic: STH/JOB {"Mode": "Monitor/Reference"}  
-    # job_mode.wait()
-    while job_mode == '':
-        time.sleep(check_interval)
+    # TODO
+    # wait until job_mode send
+    while shared_dict['job_mode'] == '':
+        time.sleep(shared_dict['check_interval'])
    
     mutex = create_mutex(version)
-    p = STH_Jobs(job_file_name)   #Create an instance of class STH_Jobs
+    p = STH_Jobs(job_file_name, shared_dict)   #Create an instance of class STH_Jobs
   
     print("Starting subprocess.")
     p.start()
     p.join() 
 
-    # TODO 
-    # send    MQTT Topic: STH/remt/comm {"Func": "Disable"}
-    STHClient.publish(remt_comm_topic, '{"Func":"Close"}', qos)
     print('Main process:', os.getpid())
 
     # Release the mutex when the application exits
@@ -272,15 +255,25 @@ def main():
     ctypes.windll.kernel32.ReleaseMutex(mutex)    
 
 #%%    Main
-if __name__ == '__main__':   
-    mp.set_start_method('spawn', force=True)
+if __name__ == '__main__':
+    # for process global variable
+    manager = mp.Manager()
+    shared_dict = manager.dict()
+    shared_dict['job_mode'] = job_mode
+    shared_dict['cycle_state'] = cycle_state
+    shared_dict['tool_changed'] = tool_changed
+    shared_dict['complete_job'] = complete_job
+    shared_dict['check_interval'] = check_interval
+    shared_dict['lock'] = manager.Lock()
     
+    # listen topic and change process global variable
     get_STHJOB_th = threading.Thread(target = get_STHJOB)
-    get_STHCNC_th = threading.Thread(target = get_STHCNC)
-    
+    get_STHCNC_th = threading.Thread(target = get_STHCNC)    
     get_STHJOB_th.start()
     get_STHCNC_th.start()
     
+    mp.set_start_method('spawn', force=True)
+
 #     Ensure that sys.argv[0] is correct for the frozen executable
     if hasattr(sys, 'frozen'):
         mp.freeze_support()
