@@ -105,13 +105,7 @@ class CtlMotion(threading.Thread):
                                    jmsg, 
                                    hostname= config_['MQTT_HOST']
                                    )
-                    if self.dclass.ready_type['Ready'] == '0':
-                        np.int16(syntecremotecnc.WRITE_plc_addr(
-                        'I',114,114,0,np.bytes_(np.array([255])),
-                        np.bytes_(np.array([],dtype=np.int16)),
-                        np.bytes_(np.array([],dtype=np.int0)))
-                        )
-                    else:
+                    if self.dclass.ready_type['Ready'] != '0':
                         np.int16(syntecremotecnc.WRITE_plc_addr(
                         'I',114,114,0,np.bytes_(np.array([0])),
                         np.bytes_(np.array([],dtype=np.int16)),

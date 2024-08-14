@@ -91,7 +91,8 @@ def set_connection(mac: str, port: str) -> ConnectionFormat:
         STHComm.CommunicationModule(mac, port))
 
 def establish_connection(parameter: ConnectionFormat,
-                        est_interval: float) -> float:
+                        est_interval: float,
+                        shared_dict: dict) -> float:
     global complete_job
     connected_state, module_setup = parameter
      
@@ -201,7 +202,7 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
         mac, port, interval = jobs[tool_no]['mac'], str(jobs[tool_no]['port']), jobs[tool_no]['interval']
         # build and set connection, and get data from STH
         run_time.append(round(establish_connection(
-            set_connection(mac,port), interval), 4)) 
+            set_connection(mac,port), interval, shared_dict), 4)) 
 
         print(f'{run_time = }') 
         # TODO

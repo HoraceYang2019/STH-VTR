@@ -1,5 +1,5 @@
 {
-    "Timeout": 900,
+    "Timeout": 45,
     "T1":{
         "mac": "84f703ce2d10",
         "port": 6501,
