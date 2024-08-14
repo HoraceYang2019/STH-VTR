@@ -34,16 +34,18 @@ P_host = "localhost"
 port = 1883
 topic_pdata = "STH/pdata"
 topic_csv = "STH/Pdetect"
+topic_changetool = 'STH/CNC'
 topic_alm = "STH/alarm"
 topic_state = "STH/state"
 
+# 標記是否開始接收pdata的訊號
 receive_pdata = False
 client = mqtt.Client()
 current_queue = queue.Queue()
 #%%
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    client.subscribe([(topic_csv, 0), (topic_pdata, 0)])
+    client.subscribe([(topic_csv, 0), (topic_pdata, 0),(topic_changetool, 0)])
 
 # turn on handle_pdata function
 def on_message(client, userdata, msg):
@@ -57,6 +59,13 @@ def on_message(client, userdata, msg):
             receive_pdata = False
             begin = 0
             print("Stopping")
+    elif msg.topic == topic_changetool:
+        message = json.loads(msg.payload.decode())
+        path = './rawdata/' + message['NCFile']
+        try:
+            base_np = detector.BuildBaseLines(path)
+        except:
+            print("path was't found")
 # collect smart tool holder signal
 def handle_pdata():
     def on_pdata_message(client, userdata, msg):
@@ -137,7 +146,7 @@ class DetectAbnoraml:
     def Serch_Power(self, data):
         power_data = float(data.get("power"))
         if power_data < minmum_power:
-            message = "lower_power"
+            message = "{Alarm:'1'}"
             return self.Alarm(topic_alm, message)
 #%%
     def TransforTime(self, data, time_step):
@@ -272,7 +281,6 @@ class DetectAbnoraml:
     def Run(self, data, id = None, local_show: bool = True):
         # record current timestamp
         start = datetime.datetime.now()
-        
         self.Serch_Power(data)
         # detect abnomal
         raw_np = self.TransforTime(data, time_step)
