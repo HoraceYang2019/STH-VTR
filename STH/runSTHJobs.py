@@ -29,7 +29,7 @@ job_file_name: str = 'STH_Jobs.json'
 coef_file:str = 'C:/VTR/RawData/Source/Data/coef.csv'
 ConnectionFormat = tuple[ctypes.c_bool, STHComm.CommunicationModule]
 ConnectionMap = dict[Hashable, dict[str, str]]
-max_timeout: float = 45 # in sec
+max_timeout: float = 65 # in sec
 
 host: str = '10.0.0.103'
 portNo: int = 1883
@@ -44,7 +44,6 @@ sth_detect_topic: str = 'STH/Pdetect'
 job_mode: str = ''
 cycle_state: bool = False
 tool_changed: bool = False
-complete_job: bool = False
 check_interval: float = 0.001
 
 STHClient = pub.Client(pub.CallbackAPIVersion.VERSION1)
@@ -77,12 +76,15 @@ def get_STHCNC():
             if cncKey[0] == 'Cycle':
                 if cnc_dict['Cycle'] == 'Start':
                     with shared_dict['lock']:
+                        print('>>>>>>>>>>>> [Xuan] shared_dict["cycle_state"] = True')
                         shared_dict['cycle_state'] = True
                 elif cnc_dict['Cycle'] == 'End':
                     with shared_dict['lock']:
+                        print('>>>>>>>>>>>> [Xuan] shared_dict["cycle_state"] = False')
                         shared_dict['cycle_state'] = False
             elif cncKey[0] == 'SpdTool':
                 with shared_dict['lock']:
+                    print('>>>>>>>>>>>> [Xuan] shared_dict["tool_changed"] = True')
                     shared_dict['tool_changed'] = True
 
 def set_connection(mac: str, port: str) -> ConnectionFormat:
@@ -93,11 +95,13 @@ def set_connection(mac: str, port: str) -> ConnectionFormat:
 def establish_connection(parameter: ConnectionFormat,
                         est_interval: float,
                         shared_dict: dict) -> float:
-    global complete_job
     connected_state, module_setup = parameter
      
     stop_event: ctypes.c_bool = mp.Value(ctypes.c_bool, False, lock=False)
 
+    # TODO
+    # wait tcode change
+    time.sleep(3)
     process: mp.Process = mp.Process(
     None, STHComm.RemoteCtl, module_setup.mac,
         (connected_state, module_setup, stop_event)
@@ -115,6 +119,7 @@ def establish_connection(parameter: ConnectionFormat,
     while not connected_state.value:
         time.sleep(0.1)
         if (time.time() - try_connect_time) > max_timeout:
+            print('>>>>>>>>>>>> [Xuan] Comm time out')
             connect_timeout  = True  # exceed the specified timeout
             break 
            
@@ -122,6 +127,9 @@ def establish_connection(parameter: ConnectionFormat,
         # TODO
         # success communicate send ready and start (record or detect) 
         STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
+        with shared_dict['lock']:
+            print('>>>>>>>>>>>> [Xuan] (Ready) shared_dict["tool_changed"] = False')
+            shared_dict['tool_changed'] = False 
         if shared_dict['job_mode'] == 'Reference':
             STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
         elif shared_dict['job_mode'] == 'Monitor':
@@ -131,34 +139,31 @@ def establish_connection(parameter: ConnectionFormat,
 
         while time.time() - interval_start_time < est_interval:
             # TODO
-            # tool changed end
-            # if tool changed    
-            if shared_dict['tool_changed'] == True:
+            # Tool changed or Cycle end    
+            if (shared_dict['tool_changed'] == True) or (shared_dict['cycle_state'] == False):
+                if shared_dict['tool_changed'] == True:
+                    print('>>>>>>>>>>>> [Xuan] Tool changed trigger')
+                    with shared_dict['lock']:
+                        shared_dict['tool_changed'] = False
+                else:
+                    print('>>>>>>>>>>>> [Xuan] Cycle end trigger')
                 if shared_dict['job_mode'] == 'Reference':
+                    print('>>>>>>>>>>>> [Xuan] Close reference')
                     STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
                 elif shared_dict['job_mode'] == 'Monitor':
+                    print('>>>>>>>>>>>> [Xuan] Close monitor')
                     STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-                STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
-                shared_dict['tool_changed'] = False
                 break
-            
-            # TODO 
-            # cycle end
-            # if cycle end
-            if shared_dict['cycle_state'] == False:
-                if shared_dict['job_mode'] == 'Reference':
-                    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
-                    break
-                elif shared_dict['job_mode'] == 'Monitor':
-                    STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-                    shared_dict['complete_job'] = True
-                    break
-
-            time.sleep(1) # wait for completion of the threads of STHComm
+            time.sleep(0.001) # wait for completion of the threads of STHComm
     # TODO
-    # normal end
+    # normal end or timeout
     # stop recd and comm
-    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+    if shared_dict['job_mode'] == 'Reference':
+        print('>>>>>>>>>>>> [Xuan] Close comm Reference')
+        STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+    elif shared_dict['job_mode'] == 'Monitor':
+        print('>>>>>>>>>>>> [Xuan] Close comm Monitor')
+        STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
     STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
 
     actual_interval: float = time.time() - interval_start_time
@@ -206,11 +211,10 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
 
         print(f'{run_time = }') 
         # TODO
+        # Reference only has 1 tool, break for loop and start merge file
         if shared_dict['job_mode'] == 'Reference':
             # merge files
-            return amount_processing_time
-        elif shared_dict['job_mode'] == 'Monitor':
-            STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
+            return (amount_processing_time := sum(run_time))
 
     # summarize the total processing time
     print(f'Sum: {(amount_processing_time := sum(run_time)):.3f}')
@@ -263,7 +267,6 @@ if __name__ == '__main__':
     shared_dict['job_mode'] = job_mode
     shared_dict['cycle_state'] = cycle_state
     shared_dict['tool_changed'] = tool_changed
-    shared_dict['complete_job'] = complete_job
     shared_dict['check_interval'] = check_interval
     shared_dict['lock'] = manager.Lock()
     

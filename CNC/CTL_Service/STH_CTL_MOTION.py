@@ -163,7 +163,7 @@ class CtlMotion(threading.Thread):
                 publish.single(config_['STATUS_TOPIC'], 
                                change_jmsg, 
                                hostname= config_['MQTT_HOST'])
-                init_tcode = new_code
+                init_tcode = new_code.copy()
                 # self.dclass.init_status_event.set()
             time.sleep(3)
     def CNCChangeTool(self):
