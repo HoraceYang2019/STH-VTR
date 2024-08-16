@@ -29,10 +29,10 @@ import threading
 begin = 0
 time_step = 0.0053
 # MQTT host的位址和埠號
-S_host = "localhost"
-P_host = "localhost"
+S_host = "163.18.48.140"
+P_host = "163.18.48.140"
 port = 1883
-topic_pdata = "STH/pdata"
+topic_pdata = "STH/Pdata"
 topic_csv = "STH/Pdetect"
 topic_changetool = 'STH/CNC'
 topic_alm = "STH/alarm"
@@ -52,17 +52,17 @@ def on_message(client, userdata, msg):
     global receive_pdata
     if msg.topic == topic_csv:
         message = msg.payload.decode()
-        if message == "{CMD:'start'}":
+        if message == "{'Cmd':'Start'}":
             receive_pdata = True
             print("Starting")
-        elif message == "{CMD:'end'}":
+        elif message == "{'Cmd':'End'}":
             receive_pdata = False
             begin = 0
             print("Stopping")
     elif msg.topic == topic_changetool:
-        message = json.loads(msg.payload.decode())
-        path = './rawdata/' + message['NCFile']
         try:
+            message = json.loads(msg.payload.decode())
+            path = './rawdata/' + message['NCFile']
             base_np = detector.BuildBaseLines(path)
         except:
             print("path was't found")
@@ -95,6 +95,7 @@ torque_index = var['torque_index']  # the torque index of the matrix
 scale = var['torque_scale']
 STH_interval = var['STH_interval']
 minmum_power = var['minmum_power']
+
 #%%
 class DetectAbnoraml:
     def __init__(self, scale:int = scale, max_time_len:int = 26):
@@ -144,7 +145,7 @@ class DetectAbnoraml:
     # base_df = BuildBaseLines(r'./rawdata/Fanuc-2/Ref/Case2-Milling.csv')
 #%% low power
     def Serch_Power(self, data):
-        power_data = float(data.get("power"))
+        power_data = float(data.get("Power"))
         if power_data < minmum_power:
             message = "{Alarm:'1'}"
             return self.Alarm(topic_alm, message)
@@ -152,11 +153,14 @@ class DetectAbnoraml:
     def TransforTime(self, data, time_step):
         global begin
         if begin == 0:
-            begin = int(data["packet_sequence_number"])
+            begin = int(data["Packet Sequence Number"])
         torque_data = np.array(data.get("Torque", []))
         torque_data = torque_data * self.scale
-        start_time = (int(data["packet_sequence_number"]) - begin) * 0.3975
-        time_series_length = len(torque_data)
+        start_time = (int(data["Packet Sequence Number"]) - begin) * 0.3975
+        try:
+            time_series_length = len(torque_data)
+        except:
+            time_series_length = 1
         end_time = start_time + (time_series_length - 1) * time_step
         time_series = np.linspace(start_time, end_time, time_series_length)
         torque_with_time = np.column_stack((time_series, torque_data))

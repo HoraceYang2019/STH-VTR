@@ -26,12 +26,13 @@ import STHComm
 # Variables
 version: str = "runSTHJobs_v1_R0"
 job_file_name: str = 'STH_Jobs.json'
+# job_file_name: str = 'STH_Jobs_1.json'
 coef_file:str = 'C:/VTR/RawData/Source/Data/coef.csv'
 ConnectionFormat = tuple[ctypes.c_bool, STHComm.CommunicationModule]
 ConnectionMap = dict[Hashable, dict[str, str]]
-max_timeout: float = 65 # in sec
+max_timeout: float = 180 # in sec
 
-host: str = '10.0.0.103'
+host: str = '163.18.48.140'
 portNo: int = 1883
 qos = 0
 remt_comm_topic: str = 'STH/remt/comm'
@@ -99,9 +100,6 @@ def establish_connection(parameter: ConnectionFormat,
      
     stop_event: ctypes.c_bool = mp.Value(ctypes.c_bool, False, lock=False)
 
-    # TODO
-    # wait tcode change
-    time.sleep(3)
     process: mp.Process = mp.Process(
     None, STHComm.RemoteCtl, module_setup.mac,
         (connected_state, module_setup, stop_event)
@@ -126,9 +124,10 @@ def establish_connection(parameter: ConnectionFormat,
     if not connect_timeout: # the assigned job is executed
         # TODO
         # success communicate send ready and start (record or detect) 
-        STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
+        ret = STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
         with shared_dict['lock']:
             print('>>>>>>>>>>>> [Xuan] (Ready) shared_dict["tool_changed"] = False')
+            print(f'>>>>>>>>>>>> [Xuan] (Ready) -> {ret}')
             shared_dict['tool_changed'] = False 
         if shared_dict['job_mode'] == 'Reference':
             STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
@@ -149,10 +148,12 @@ def establish_connection(parameter: ConnectionFormat,
                     print('>>>>>>>>>>>> [Xuan] Cycle end trigger')
                 if shared_dict['job_mode'] == 'Reference':
                     print('>>>>>>>>>>>> [Xuan] Close reference')
-                    STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+                    ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+                    print(f'>>>>>>>>>>>> [Xuan] Close reference -> {ret}')
                 elif shared_dict['job_mode'] == 'Monitor':
                     print('>>>>>>>>>>>> [Xuan] Close monitor')
-                    STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
+                    ret = STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
+                    print(f'>>>>>>>>>>>> [Xuan] Close monitor -> {ret}')
                 break
             time.sleep(0.001) # wait for completion of the threads of STHComm
     # TODO
@@ -160,11 +161,14 @@ def establish_connection(parameter: ConnectionFormat,
     # stop recd and comm
     if shared_dict['job_mode'] == 'Reference':
         print('>>>>>>>>>>>> [Xuan] Close comm Reference')
-        STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+        ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
+        print(f'>>>>>>>>>>>> [Xuan] Close comm Reference -> {ret}')
     elif shared_dict['job_mode'] == 'Monitor':
         print('>>>>>>>>>>>> [Xuan] Close comm Monitor')
         STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-    STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
+        print(f'>>>>>>>>>>>> [Xuan] Close comm Monitor -> {ret}')
+    ret = STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
+    print(f'>>>>>>>>>>>> [Xuan] Close comm -> {ret}')
 
     actual_interval: float = time.time() - interval_start_time
     stop_event.value = True # a signal to stop a process
@@ -198,7 +202,11 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
     # wait until cycle start send
     while shared_dict['cycle_state'] != True:
         time.sleep(shared_dict['check_interval'])
-     
+    
+    # # TODO
+    # # wait tcode change
+    time.sleep(3)
+    
     for tool_no in jobs.keys():   # focus on different jobs by tool ID 
         # get taget mac, port, and defualt interval time by Tool ID
         

@@ -8,8 +8,8 @@
     "T2":
     {
         "mac": "84f703cdbbaa",
-        "port": 6500,
-        "interval": 600 
+        "port": 6503,
+        "interval": 600
     },
     "T3":{
         "mac": "84f703ce235e",
