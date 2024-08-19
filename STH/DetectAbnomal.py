@@ -169,8 +169,8 @@ class DetectAbnoraml:
     def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
         index = raw_np[0][0]
         # find the range of possible timetag
-        while index > self.base_np[1127, 0]:
-            index = index - self.base_np[1127, 0]
+        while index > self.base_np[500, 0]:
+            index = index - self.base_np[500, 0]
         index = index + self.base_np[400, 0]
         indexs = np.where((self.base_np[:, 0] > index - tolerance) & (self.base_np[:, 0] < index + tolerance)) 
         return raw_np, indexs
