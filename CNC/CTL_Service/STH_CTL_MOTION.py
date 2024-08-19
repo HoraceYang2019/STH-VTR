@@ -143,10 +143,14 @@ class CtlMotion(threading.Thread):
             time.sleep(0.5)
     def CheckTcode(self):
         init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
+        memo = 0
         while state:
-            new_code = np.int32(
-                syntecremotecnc.READ_plc_addr('R',102,102)[4]
-                )[0]
+            try:
+                new_code = np.int32(
+                    syntecremotecnc.READ_plc_addr('R',102,102)[4]
+                    )[0]
+            except TypeError:
+                new_code = memo.copy()
             if init_tcode != new_code:
                 np.int16(syntecremotecnc.WRITE_plc_addr(
                     'I',114,114,0,np.bytes_(np.array([255])),
@@ -165,6 +169,7 @@ class CtlMotion(threading.Thread):
                                hostname= config_['MQTT_HOST'])
                 init_tcode = new_code.copy()
                 # self.dclass.init_status_event.set()
+                memo = new_code
             time.sleep(3)
     def CNCChangeTool(self):
         while state:
