@@ -77,15 +77,12 @@ def get_STHCNC():
             if cncKey[0] == 'Cycle':
                 if cnc_dict['Cycle'] == 'Start':
                     with shared_dict['lock']:
-                        print('>>>>>>>>>>>> [Xuan] shared_dict["cycle_state"] = True')
                         shared_dict['cycle_state'] = True
                 elif cnc_dict['Cycle'] == 'End':
                     with shared_dict['lock']:
-                        print('>>>>>>>>>>>> [Xuan] shared_dict["cycle_state"] = False')
                         shared_dict['cycle_state'] = False
             elif cncKey[0] == 'SpdTool':
                 with shared_dict['lock']:
-                    print('>>>>>>>>>>>> [Xuan] shared_dict["tool_changed"] = True')
                     shared_dict['tool_changed'] = True
 
 def set_connection(mac: str, port: str) -> ConnectionFormat:
@@ -117,7 +114,6 @@ def establish_connection(parameter: ConnectionFormat,
     while not connected_state.value:
         time.sleep(0.1)
         if (time.time() - try_connect_time) > max_timeout:
-            print('>>>>>>>>>>>> [Xuan] Comm time out')
             connect_timeout  = True  # exceed the specified timeout
             break 
            
@@ -126,8 +122,6 @@ def establish_connection(parameter: ConnectionFormat,
         # success communicate send ready and start (record or detect) 
         ret = STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
         with shared_dict['lock']:
-            print('>>>>>>>>>>>> [Xuan] (Ready) shared_dict["tool_changed"] = False')
-            print(f'>>>>>>>>>>>> [Xuan] (Ready) -> {ret}')
             shared_dict['tool_changed'] = False 
         if shared_dict['job_mode'] == 'Reference':
             STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
@@ -141,34 +135,22 @@ def establish_connection(parameter: ConnectionFormat,
             # Tool changed or Cycle end    
             if (shared_dict['tool_changed'] == True) or (shared_dict['cycle_state'] == False):
                 if shared_dict['tool_changed'] == True:
-                    print('>>>>>>>>>>>> [Xuan] Tool changed trigger')
                     with shared_dict['lock']:
                         shared_dict['tool_changed'] = False
-                else:
-                    print('>>>>>>>>>>>> [Xuan] Cycle end trigger')
                 if shared_dict['job_mode'] == 'Reference':
-                    print('>>>>>>>>>>>> [Xuan] Close reference')
                     ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
-                    print(f'>>>>>>>>>>>> [Xuan] Close reference -> {ret}')
                 elif shared_dict['job_mode'] == 'Monitor':
-                    print('>>>>>>>>>>>> [Xuan] Close monitor')
                     ret = STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-                    print(f'>>>>>>>>>>>> [Xuan] Close monitor -> {ret}')
                 break
             time.sleep(0.001) # wait for completion of the threads of STHComm
     # TODO
     # normal end or timeout
     # stop recd and comm
     if shared_dict['job_mode'] == 'Reference':
-        print('>>>>>>>>>>>> [Xuan] Close comm Reference')
         ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
-        print(f'>>>>>>>>>>>> [Xuan] Close comm Reference -> {ret}')
     elif shared_dict['job_mode'] == 'Monitor':
-        print('>>>>>>>>>>>> [Xuan] Close comm Monitor')
         STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
-        print(f'>>>>>>>>>>>> [Xuan] Close comm Monitor -> {ret}')
     ret = STHClient.publish(remt_comm_topic, "{'Func':'Close'}", qos)
-    print(f'>>>>>>>>>>>> [Xuan] Close comm -> {ret}')
 
     actual_interval: float = time.time() - interval_start_time
     stop_event.value = True # a signal to stop a process

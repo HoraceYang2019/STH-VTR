@@ -1,6 +1,6 @@
 {
     "IP_ADDRESS" : "169.254.146.85",
-    "MQTT_HOST" : "10.0.0.103",
+    "MQTT_HOST" : "163.18.48.140",
     "CYCLE_START_TOPIC" : "STH/CNC",
     "STATUS_TOPIC" : "STH/CNC",
     "READY_TOPIC" : "STH/RDY",

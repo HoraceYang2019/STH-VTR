@@ -1,19 +1,18 @@
 {
     "Timeout": 45,
-    "T2":
-    {
+    "T3":{
         "mac": "84f703cdbbaa",
         "port": 6503,
-        "interval": 600
+        "interval": 3600
     },
     "T1":{
         "mac": "84f703ce2d10",
         "port": 6501,
-        "interval": 600
+        "interval": 3600
     },
-    "T3":{
+    "T5":{
         "mac": "84f703ce235e",
         "port": 6502,
-        "interval": 600 
+        "interval": 3600 
     }
 }
