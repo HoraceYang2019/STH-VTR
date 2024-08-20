@@ -39,7 +39,7 @@ remt_comm_topic: str = 'STH/remt/comm'
 remt_recd_topic: str = 'STH/remt/record'
 sth_ready_topic: str = 'STH/RDY'
 sth_job_topic: str = 'STH/JOB'
-sth_cnc_topic: str = 'STH/CNC'
+sth_cnc_topic: str = 'STH/CNC/CYCLE'
 sth_detect_topic: str = 'STH/Pdetect'
 
 job_mode: str = ''
@@ -71,7 +71,10 @@ def get_STHJOB():
 def get_STHCNC():
     while True:
         msg = sub.simple(sth_cnc_topic, hostname=host, port=portNo, qos=qos)
-        cnc_dict = dict(eval(msg.payload.decode('utf-8')))
+        try:    #"NCFile": null
+            cnc_dict = dict(eval(msg.payload.decode('utf-8')))
+        except Exception:
+            pass
         cncKey = list(cnc_dict.keys())
         if len(cncKey) == 1:
             if cncKey[0] == 'Cycle':
@@ -134,9 +137,8 @@ def establish_connection(parameter: ConnectionFormat,
             # TODO
             # Tool changed or Cycle end    
             if (shared_dict['tool_changed'] == True) or (shared_dict['cycle_state'] == False):
-                if shared_dict['tool_changed'] == True:
-                    with shared_dict['lock']:
-                        shared_dict['tool_changed'] = False
+                with shared_dict['lock']:
+                    shared_dict['tool_changed'] = False
                 if shared_dict['job_mode'] == 'Reference':
                     ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
                 elif shared_dict['job_mode'] == 'Monitor':
@@ -187,7 +189,7 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
     
     # # TODO
     # # wait tcode change
-    time.sleep(3)
+    time.sleep(5)
     
     for tool_no in jobs.keys():   # focus on different jobs by tool ID 
         # get taget mac, port, and defualt interval time by Tool ID

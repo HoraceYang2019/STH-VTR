@@ -29,27 +29,41 @@ def ConvertToFloat(input_):
     return np.float16(input_)
 def GetParam() -> Dict[str, Any]:
     init_name = (syntecremotecnc.READ_status()[1])
-    init_ext = ConvertToFloat(syntecremotecnc.READ_work_coord_single('EXT')[1])
+    try:    #NoneType
+        init_ext = ConvertToFloat(syntecremotecnc.READ_work_coord_single('EXT')[1])
+    except Exception:
+        init_ext = np.array([0, 0, 0], dtype=np.float16)
     init_g54 = ConvertToFloat(syntecremotecnc.READ_work_coord_single('G54')[1])
     ovRate = syntecremotecnc.READ_spindle()
     init_spindle_ovRate = ConvertToFloat(ovRate[2])
     init_feedrate_ovRate = ConvertToFloat(ovRate[1])
-    t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0] # Tcode
+    try:    #NoneType
+        t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0] # Tcode
+    except Exception:
+        while t_code is None:
+            t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
     # offset_title = np.array(syntecremotecnc.READ_offset_title()[1])
     offset_scope = ConvertToFloat(syntecremotecnc.READ_offset_scope(1,10)[1])
-    rul = (np.int32(syntecremotecnc.READ_plc_addr('R',
-                                                  config_['MAX_LIFE']
-                                                  +int(t_code)*10,
-                                                  config_['MAX_LIFE']
-                                                  +int(t_code)*10)[4]
-                                                  )[0]
-      - np.int32(syntecremotecnc.READ_plc_addr('R',
-                                               config_['CURRENT_LIFE']
-                                               +int(t_code)*10,
-                                               config_['CURRENT_LIFE']
-                                               +int(t_code)*10)[4]
-                                               )[0]
-            )
+    try:    #NoneType
+        rul = (np.int32(syntecremotecnc.READ_plc_addr('R',
+                                                    config_['MAX_LIFE']
+                                                    +int(t_code)*10,
+                                                    config_['MAX_LIFE']
+                                                    +int(t_code)*10)[4]
+                                                    )[0]
+        - np.int32(syntecremotecnc.READ_plc_addr('R',
+                                                config_['CURRENT_LIFE']
+                                                +int(t_code)*10,
+                                                config_['CURRENT_LIFE']
+                                                +int(t_code)*10)[4]
+                                                )[0]
+                )
+    except Exception:
+        rul = np.intc(500)
+    try:    #NoneType
+        init_ext[0]
+    except Exception:
+        init_ext = np.array([0, 0, 0], dtype=np.float16)
     return {
         'NCFile': init_name ,
         'OffCoord':{'X':float(init_ext[0]),
@@ -95,7 +109,10 @@ class CtlComm(threading.Thread):
                     ConvertToFloat(syntecremotecnc.READ_nc_pointer()[1]) )   
                 coord = ConvertToFloat(syntecremotecnc.READ_position()[4])
                 result[0] = nc_point
-                result[1:5] = coord[:-1]
+                try:    #NoneType
+                    result[1:5] = coord[:-1]
+                except Exception:
+                    result[1:5] = np.array([0, 0, 0], dtype=np.float16)
                 self.dclass.buffer[self.dclass.buffer_index].append(
                                                                 result.tolist())
     def CNCPublish(self):

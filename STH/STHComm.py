@@ -310,7 +310,7 @@ class CommSTH(mp.Process):
 
                 #maximum queuing number for incoming connections
                 sock.listen(3)
-                sock.settimeout(30)  #timeout for listening
+                sock.settimeout(180)  #timeout for listening
 
             except socket.error as e:
                 error_code: int = e.errno

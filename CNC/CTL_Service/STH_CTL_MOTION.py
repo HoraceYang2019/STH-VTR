@@ -67,7 +67,11 @@ def GetParam() -> Dict[str, Any]:
     ovRate = syntecremotecnc.READ_spindle()
     init_spindle_ovRate = ConvertToFloat(ovRate[2])
     init_feedrate_ovRate = ConvertToFloat(ovRate[1])
-    t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0] # Tcode
+    try:    #NoneType
+        t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0] # Tcode
+    except Exception:
+        while t_code is None:
+            t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
     # offset_title = np.array(syntecremotecnc.READ_offset_title()[1])
     offset_scope = ConvertToFloat(syntecremotecnc.READ_offset_scope(1,10)[1])
     rul = RUL(t_code)
@@ -142,15 +146,17 @@ class CtlMotion(threading.Thread):
                 machine_state =  syntecremotecnc.READ_status()[5]
             time.sleep(0.5)
     def CheckTcode(self):
-        init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
-        memo = 0
+        try:    #NoneType
+            init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
+        except Exception:
+            while init_tcode is None:
+                init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
         while state:
-            try:
-                new_code = np.int32(
-                    syntecremotecnc.READ_plc_addr('R',102,102)[4]
-                    )[0]
-            except TypeError:
-                new_code = memo.copy()
+            try:    #NoneType
+                new_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
+            except Exception:
+                while new_code is None:
+                    new_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
             if init_tcode != new_code:
                 np.int16(syntecremotecnc.WRITE_plc_addr(
                     'I',114,114,0,np.bytes_(np.array([255])),
@@ -164,21 +170,23 @@ class CtlMotion(threading.Thread):
                     }
                 }
                 change_jmsg = json.dumps(change_msg, ensure_ascii=False)
-                publish.single(config_['STATUS_TOPIC'], 
+                publish.single(config_['CYCLE_START_TOPIC'], 
                                change_jmsg, 
                                hostname= config_['MQTT_HOST'])
                 init_tcode = new_code.copy()
                 # self.dclass.init_status_event.set()
-                memo = new_code
             time.sleep(3)
     def CNCChangeTool(self):
         while state:
             change_key = 'ToolChange'
-            change_msg = subscribe.simple(config_['STATUS_TOPIC'], 
+            change_msg = subscribe.simple(config_['CYCLE_START_TOPIC'], 
                                           hostname = config_['MQTT_HOST'])
             msg_byte = change_msg.payload 
             byte_decode = msg_byte.decode("utf-8")
-            change_type: Dict = ast.literal_eval(byte_decode)
+            try:    #"NCFile": null
+                change_type: Dict = ast.literal_eval(byte_decode)
+            except Exception:
+                continue
             if [*change_type.keys()][0] == change_key: 
                 ChangeToolFunc(change_type[change_key]) 
     def run(self):
@@ -193,3 +201,4 @@ class CtlMotion(threading.Thread):
         check_starting.join()
         check_Tcode.join()
         cnc_change_tool.join()
+# %%

@@ -1,7 +1,7 @@
 {
     "IP_ADDRESS" : "169.254.146.85",
     "MQTT_HOST" : "163.18.48.140",
-    "CYCLE_START_TOPIC" : "STH/CNC",
+    "CYCLE_START_TOPIC" : "STH/CNC/CYCLE",
     "STATUS_TOPIC" : "STH/CNC",
     "READY_TOPIC" : "STH/RDY",
     "SAVE_DIR" : "./jsonlog",
