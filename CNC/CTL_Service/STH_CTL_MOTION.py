@@ -125,12 +125,12 @@ class CtlMotion(threading.Thread):
                     print('SingleBlock!')
                     self.dclass.cycle_start_event.clear()
                     # self.dclass.init_status_event.set()
-                    msg = {"Cycle": 'End'}
-                    jmsg = json.dumps(msg, ensure_ascii = False)
-                    publish.single(config_['CYCLE_START_TOPIC'], 
-                                   jmsg, 
-                                   hostname= config_['MQTT_HOST']
-                                   )
+                    # msg = {"Cycle": 'End'}
+                    # jmsg = json.dumps(msg, ensure_ascii = False)
+                    # publish.single(config_['CYCLE_START_TOPIC'], 
+                    #                jmsg, 
+                    #                hostname= config_['MQTT_HOST']
+                    #                )
                     self.dclass.ready_type = {'Ready': '0'}
                 else:
                     print('CycleEnd!')
