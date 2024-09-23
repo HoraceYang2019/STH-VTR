@@ -149,8 +149,10 @@ class CtlMotion(threading.Thread):
         try:    #NoneType
             init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
         except Exception:
-            while init_tcode is None:
-                init_tcode = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
+            temp = syntecremotecnc.READ_plc_addr('R',102,102)[4]
+            while temp is None:
+                temp = syntecremotecnc.READ_plc_addr('R',102,102)[4]
+            init_tcode = np.int32(temp)[0]
         while state:
             try:    #NoneType
                 new_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]

@@ -40,8 +40,10 @@ def GetParam() -> Dict[str, Any]:
     try:    #NoneType
         t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0] # Tcode
     except Exception:
-        while t_code is None:
-            t_code = np.int32(syntecremotecnc.READ_plc_addr('R',102,102)[4])[0]
+        temp = syntecremotecnc.READ_plc_addr('R',102,102)[4]
+        while temp is None:
+            temp = syntecremotecnc.READ_plc_addr('R',102,102)[4]
+        t_code = np.int32(temp)[0]
     # offset_title = np.array(syntecremotecnc.READ_offset_title()[1])
     offset_scope = ConvertToFloat(syntecremotecnc.READ_offset_scope(1,10)[1])
     try:    #NoneType
