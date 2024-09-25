@@ -1,10 +1,8 @@
-# -*- mode: python ; coding: utf-8 -*-
 # pyinstaller --noconfirm --clean exeSpec.spec
-#     pathex=[r'C:/Users/hao/anaconda3/envs/STH-py3-11/Lib']
-#   or pathex = [r'C:/Users/hao/anaconda3/envs/Python11/Lib'],
-# C:\Users\hao\anaconda3\envs\STHW3
+# 'STHScan' 'STHComm' 'DataProcess' 'runSTHJobs'
+# pathex => packages path
 
-filename = 'runSTHJobs_1_r0' #'STHScan_7_0_2'#'DataProcess_10_5_1'##'STHComm_13_r1'#'DataProcess_10_5_1' #'STHScan_7_0_2' # # # 
+filename = 'DataProcess'
 block_cipher = None
 py_files = [
     filename + '.py',
@@ -12,7 +10,7 @@ py_files = [
 
 a = Analysis(
     py_files,
-    pathex = [r'C:/Users/hao/anaconda3/envs/Python11/Lib'],
+    pathex = [r'C:\Users\user\anaconda3\envs\sth\Lib'],
     binaries = [],
     datas = [],
     hiddenimports = ['paho.mqtt.client','paho.mqtt.subscribe','scipy.signal',
