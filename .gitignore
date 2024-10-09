@@ -1,8 +1,9 @@
 # cpython
 __pycache__/
 
-# vscode dir
+# vscode
 .vscode/
+*.code-workspace
 
 # CNC
 CNC/config/*.dll
