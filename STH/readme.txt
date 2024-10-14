@@ -18,8 +18,10 @@ STH-W3-J                       # major folder
                 Denoise         # denoise raw signal
                 STHSense        # parse analog dataprocess into digital
                 InitCollection  # initial conditions          
-            UpdateSTHParm_1_0
-        UpdateSTHParm_1_0       # adopt the updated parameters   
+            UpdateSTHParm
+        UpdateSTHParm           # adopt the updated parameters   
+        MonitorNetSocket        # monitor network performance
+        MinitorSysUsage         # monitor CPU, memory, and disk usages
 
   ---- data process  
     DataProcess.py              # read the raw txt and parse it to csv
@@ -48,9 +50,27 @@ STH-W3-J                       # major folder
                 InitCollection  # initial conditions          
             UpdateSTHParm_1_0 
     
-  ----  node-red operation
-    loadInitSTH.py             # load initSTH.py into Node-red
+  ---- node-red operation
+    loadInitSTH.py              # load initSTH.py into Node-red
       
+  ---- job assoicated 
+    runSTHJobs.py               # run jobs based on STH_Jobs.json
+        STH_Jobs.json           # jobs for running
+        coef.csv                # coefficients for the current STH calibration
+        STHComm                 # communicate with STH 3
+    
+    STH_Jobs.json               # specify mac, port, and intervals by Tool
+
+    DetectAbnormal.py           # detect abnormal based on Reference in window   
+
+  ---- controller associated
+  ---- monitor tools
+    MonitorNetSocket.py         # monitor network performance
+    MinitorSysUsage.py          # monitor CPU, memory, and disk usages    
+
+  ---- compile to exe
+    exeSpec.spec                # configuration for compiling *.py into .exe
+    
     
 ********************************************************************************************
 VTR: virtual tool room
