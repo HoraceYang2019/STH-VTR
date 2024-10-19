@@ -19,33 +19,44 @@ import paho.mqtt.client as pub
 import paho.mqtt.subscribe as sub
 import threading
 import time
+from typing import Any, Deque, Union
+from types import ModuleType
 
 # customized functions
 import STHComm
+import UpdateSTHParm as usp
 
 # Variables
 version: str = "runSTHJobs_v1_R0"
 job_file_name: str = 'STH_Jobs.json'
-# job_file_name: str = 'STH_Jobs_1.json'
 coef_file:str = 'C:/VTR/RawData/Source/Data/coef.csv'
 ConnectionFormat = tuple[ctypes.c_bool, STHComm.CommunicationModule]
 ConnectionMap = dict[Hashable, dict[str, str]]
 max_timeout: float = 180 # in sec
 
-host: str = '10.0.0.103'
-portNo: int = 1883
-qos = 0
-remt_comm_topic: str = 'STH/remt/comm'
-remt_recd_topic: str = 'STH/remt/record'
-sth_ready_topic: str = 'STH/RDY'
-sth_job_topic: str = 'STH/JOB'
-sth_cnc_topic: str = 'STH/CNC/CYCLE'
-sth_detect_topic: str = 'STH/Pdetect'
-
+# for process communicate
 job_mode: str = ''
 cycle_state: bool = False
 tool_changed: bool = False
 check_interval: float = 0.001
+
+def SetParameter(set_p: Union[ModuleType, Any]):  #Any -> toUpdate
+    address: str = set_p.broker_address
+    port: int = set_p.broker_port
+    qos: int = usp.init.qos
+    
+    r_comm: str = usp.init.remt_comm_topic
+    r_recd: str = usp.init.remt_recd_topic
+    ready: str = usp.init.sth_ready_topic
+    job: str = usp.init.sth_job_topic
+    cnc: str = usp.init.sth_cnc_topic
+    detect: str = usp.init.sth_detect_topic
+    
+    return address, port, qos, r_comm, r_recd, ready, job, cnc, detect
+
+host, portNo, qos, remt_comm_topic, remt_recd_topic, sth_ready_topic,\
+    sth_job_topic, sth_cnc_topic, sth_detect_topic = \
+    SetParameter(usp.init) if not usp.updated_state else SetParameter(usp.updated)
 
 STHClient = pub.Client(pub.CallbackAPIVersion.VERSION1)
 STHClient.connect(host, portNo)

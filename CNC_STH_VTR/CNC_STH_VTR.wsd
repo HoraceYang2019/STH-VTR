@@ -7,7 +7,7 @@ end box
 box "STH Services for Pi" #LightSteelBlue
     participant STH.COM
     participant STH.JOB
-    participant STH.CMP
+    participant STH.DET
 end box
 participant VTR
 
@@ -37,7 +37,7 @@ group Record Reference
     
     STH.CTL -> STH.JOB: start record
         note left
-        MQTT Topic: STH/CNC
+        MQTT Topic: STH/CNC/CYCLE
         {"Cycle": "Start"}
         end note
     STH.JOB -> STH.COM: enable communicate
@@ -62,18 +62,18 @@ group Record Reference
         note right
         MQTT Topic: STH/Pdata
         {
-            "MAC": /string/,
-            "Power": /float/,
-            "Temperature": /int/,
-            "Packet Sequence Number": /int/,
-            "RSSI": /int/,
-            "TTOLP": /int/,        
-            "Torque": [/float/,...,/float],
-            "BendingX": [/float/,...,/float],
-            "BendingY": [/float/,...,/float],
-            "timetag": /string/
+            "MAC": //string//,
+            "Power": //float//,
+            "Temperature": //int//,
+            "Packet Sequence Number": //int//,
+            "RSSI": //int//,
+            "TTOLP": //int//,        
+            "Torque": [//float//,...,//float//],
+            "BendingX": [//float//,...,//float//],
+            "BendingY": [//float//,...,//float//],
+            "timetag": //string//
         } 
-        [[file:./PData.json]]
+        [[file:./STH-Pdata.json]]
         end note
     STH.CTL <-> CNC: query/response state
     CNC -> STH.CTL: cycle end
@@ -81,7 +81,7 @@ group Record Reference
 
     STH.CTL -> STH.JOB: stop record
         note left
-        MQTT Topic: STH/CNC
+        MQTT Topic: STH/CNC/CYCLE
         {"Cycle": "End"}
     end note
     STH.JOB -> STH.COM: stop record command
@@ -98,7 +98,6 @@ group Record Reference
 
     STH.JOB -> STH.JOB: <<merge files>>
     deactivate STH.JOB
-
 end
 
 '*----------------Next page------------------------------*'
@@ -122,23 +121,23 @@ group Monitoring
         note right
         MQTT Topic: STH/CNC
         {
-            "NCfile": /string/, 
-            "OffCoord": {"X": /float/, "Y": /float/, "Z": /float/}, 
-            "SpdOver": /float/, 
-            "FedOver": /float/, 
-            "G54": {"X": /float/, "Y": /float/, "Z": /float/}, 
-            "SpdTool": {"TCode": /int/,  "RUL": /int/},
-            "RadiusComp": [/float/, .., /float/], 'mapping to T1,...,Tn'
-            "RadiusWear": [/float/, .., /float/], 'mapping to T1,...,Tn'
-            "LengthComp": [/float/, .., /float/], 'mapping to T1,...,Tn'
+            "NCfile": //string//, 
+            "OffCoord": {"X": //float//, "Y": //float//, "Z": //float//}, 
+            "SpdOver": //float//, 
+            "FedOver": //float//, 
+            "G54": {"X": //float//, "Y": //float//, "Z": //float//}, 
+            "SpdTool": {"TCode": //int//,  "RUL": //int//},
+            "RadiusComp": [//float//, .., //float//], 'mapping to T1,...,Tn'
+            "RadiusWear": [//float//, .., //float//], 'mapping to T1,...,Tn'
+            "LengthComp": [//float//, .., //float//], 'mapping to T1,...,Tn'
         }
         [[file:./CNC-Inital.json]]
         end note   
     alt Modify Tool RUL
     VTR -> STH.CTL: modify a tool status
         note right
-        MQTT Topic: STH/CNC
-        {"ChangeTool": /int/} 
+        MQTT Topic: STH/CNC/CYCLE
+        {"ChangeTool": //int//} 
         '{1: wear, 2:broken}'
         end note
     STH.CTL -> CNC: modify a tool RUL
@@ -149,7 +148,7 @@ group Monitoring
 
     STH.CTL -> STH.JOB: start detect
         note left
-        MQTT Topic: STH/CNC
+        MQTT Topic: STH/CNC/CYCLE
         {"Cycle": "Start"}
         end note  
     STH.JOB -> STH.COM: enable communicate
@@ -165,38 +164,39 @@ group Monitoring
         {"Ready": "1"}
         end note
     STH.CTL -> CNC: update M code 
-    STH.JOB -> STH.CMP: start detect command
+    STH.JOB -> STH.DET: start detect command
         note left
         MQTT Topic: STH/Pdetect
         {"Cmd": "Start"}
         end note
-    activate STH.CMP
+    activate STH.DET
 
-    STH.CMP -> STH.CMP: <<ref Reference.csv>>    
+    STH.DET -> STH.DET: <<ref Reference.csv>>    
 == Repetition ==
     STH.CTL <-> CNC: access CNC status by timer
     alt Update STH data by Timer (0.4s)
     STH.COM --> VTR: publish STH data
     end alt
-    STH.COM -> STH.CMP:  MQTT Topic: STH/Pdata
+    STH.COM -> STH.DET:  MQTT Topic: STH/Pdata
     STH.CTL --> VTR: publish in time-interval (s)
         note right
         MQTT Topic: STH/CNC 
         {
-            "LineNo": [/float/,..., /float/], '1-1 mapping'
+            "LineNo": [//float//,..., //float//], '1-1 mapping'
             "NowCoord":{ 
-            "X": [/float/,.., /float/], '1-1 mapping to LineNo'
-            "Y": [/float/,.., /float/], '1-1 mapping to LineNo'
-            "Z": [/float/,.., /float/]},'1-1 mapping to LineNo'
+            "X": [//float//,.., //float//], '1-1 mapping to LineNo'
+            "Y": [//float//,.., //float//], '1-1 mapping to LineNo'
+            "Z": [//float//,.., //float//]},'1-1 mapping to LineNo'
         }
         [[file:./CNC-Current.json]]
         end note
-    STH.CTL -> STH.CMP: MQTT Topic: STH/CNC
-    alt Inform Tool Alarm by Event
-    STH.CMP --> VTR: update tool RUL
+    STH.CTL -> STH.DET: MQTT Topic: STH/CNC
+    alt Inform tool change by event
+    STH.DET --> STH.CTL: inform tool change
         note right
-        MQTT Topic: STH/ALM
-        {"Alarm": <"1","2","3">}
+        MQTT Topic: STH/CNC/CYCLE
+        {"ChangeTool": //int//}
+        '{1: wear, 2:broken}'
         end note
     end alt
 == Completion ==
@@ -206,15 +206,15 @@ group Monitoring
 
     STH.CTL -> STH.JOB: stop detect
         note left
-        MQTT Topic: STH/CNC
+        MQTT Topic: STH/CNC/CYCLE
         {"Cycle": "End"}
     end note
-    STH.JOB -> STH.CMP: stop detect command
+    STH.JOB -> STH.DET: stop detect command
         note left
         MQTT Topic: STH/Pdetect 
         {"Cmd": "End"}
         end note
-    deactivate STH.CMP
+    deactivate STH.DET
 
     STH.JOB -> STH.COM: disable communicate
     note right
@@ -234,8 +234,8 @@ group Change Tool
     alt ManualChangeTool
         VTR -> STH.CTL: Manual change 
             note right
-            MQTT Topic: STH/CNC
-            {"ChangeTool": /int/} 
+            MQTT Topic: STH/CNC/CYCLE
+            {"ChangeTool": //int//} 
             '{1: wear, 2:broken}'
             [[file:./CNC-ChangeTool.json]]
             end note
@@ -244,13 +244,13 @@ group Change Tool
     STH.CTL <-> CNC: access CNC status by timer
     STH.CTL -> STH.JOB: actual tool being changed
         note left
-        MQTT Topic: STH/CNC
-        {"SpdTool": {"TCode": /int/,  "RUL": /int/}}
+        MQTT Topic: STH/CNC/CYCLE
+        {"SpdTool": {"TCode": //int//,  "RUL": //int//}}
         [[file:./CNC-SpdTool.json]]
         end note 
     activate STH.JOB
 
-    STH.JOB -> STH.CMP: stop detect command
+    STH.JOB -> STH.DET: stop detect command
         note left
         MQTT Topic: STH/Pdetect 
         {"Cmd": "End"}
@@ -274,16 +274,16 @@ group Change Tool
         end note  
     STH.CTL -> CNC: inform new STH ready
 
-    STH.JOB -> STH.CMP: start detect command
+    STH.JOB -> STH.DET: start detect command
     note left
     MQTT Topic: STH/Pdetect 
     {"Cmd": "Start"}
     end note
-    activate STH.CMP
+    activate STH.DET
     deactivate STH.JOB
 
-    STH.CMP -> STH.CMP: <<reset comparing>>
-    deactivate STH.CMP      
+    STH.DET -> STH.DET: <<reset comparing>>
+    deactivate STH.DET      
 end
 
-@endum
+@enduml

@@ -31,6 +31,7 @@ mode0_frame_size: int = packet_num_in_frame * packet_size * data_length # 6*1016
 local_broker: bool = True
 broker_address: str = '127.0.0.1' if local_broker else '10.0.0.111'
 broker_port: int = 1883  # Replace with the port number of your MQTT broker
+qos: int = 0
 
 web_address: str = '127.0.0.1'
 web_port: int = 1880
@@ -106,3 +107,11 @@ emul_topic: str = 'STH/emul'             # emulation output of historical STH
 control_limit_target_column: list[str] = ['Torque']
 control_limit_window_size: int = 600
 control_limit_weight: float = 3
+
+#%%
+#used for CNC_STH_VTR
+sth_ready_topic: str = 'STH/RDY'         #send from runSTHjobs(comm success will send)
+sth_detect_topic: str = 'STH/Pdetect'    #send from runSTHjobs(start DetectAbnomal.py)
+sth_job_topic: str = 'STH/JOB'           #send from node-red(runSTHjobs job mode)
+sth_cnc_topic: str = 'STH/CNC/CYCLE'     #send from SYNTEC python file(CYCLE status or toolChanged)
+
