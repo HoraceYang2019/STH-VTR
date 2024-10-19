@@ -1,16 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
-Previous version: 0.2
-Current version: 0.3
+TODO:
 
-conda install plotly
-
-Change items:
-1. for test
-
-Next TODO:
 '''
-#%% 
 import json
 import pandas as pd
 import numpy as np
@@ -25,30 +17,39 @@ import threading
 import queue
 import paho.mqtt.client as mqtt
 import threading
+import platform
 #%%
+NC = ['']
 begin = 0
 time_step = 0.0053
 # MQTT host的位址和埠號
-S_host = "163.18.48.140"
-P_host = "163.18.48.140"
+S_host = "10.0.0.103"
+P_host = "10.0.0.103"
 port = 1883
 topic_pdata = "STH/Pdata"
 topic_csv = "STH/Pdetect"
-topic_changetool = 'STH/CNC'
+topic_changetool = 'STH/CNC/CYCLE'
+topic_cnc = 'STH/CNC'
 topic_alm = "STH/alarm"
 topic_state = "STH/state"
 
-# 標記是否開始接收pdata的訊號
-receive_pdata = False
+receive_pdata = False   #Control the acceptance of pdata
 client = mqtt.Client()
 current_queue = queue.Queue()
+
+if platform.system() == "Windows":
+    base_path: str = 'C:\VTR/'
+else:
+    base_path: str = '/var/VTR/'
+
 #%%
 def on_connect(client, userdata, flags, rc):
     print("Connected with result code " + str(rc))
-    client.subscribe([(topic_csv, 0), (topic_pdata, 0),(topic_changetool, 0)])
+    client.subscribe([(topic_csv, 0), (topic_pdata, 0),(topic_cnc, 0)])
 
 # turn on handle_pdata function
 def on_message(client, userdata, msg):
+    global NC
     global receive_pdata
     if msg.topic == topic_csv:
         message = msg.payload.decode()
@@ -59,13 +60,16 @@ def on_message(client, userdata, msg):
             receive_pdata = False
             begin = 0
             print("Stopping")
-    elif msg.topic == topic_changetool:
+    elif msg.topic == topic_cnc:
+        message = json.loads(msg.payload.decode())
         try:
-            message = json.loads(msg.payload.decode())
-            path = './rawdata/' + message['NCFile']
-            base_np = detector.BuildBaseLines(path)
+            if NC != message['NCFile']:
+                NC = message['NCFile']
+                path = './rawdata/' + NC + '.csv'
+                base_np = detector.BuildBaseLines(path)
+                print(f'{NC}.csv')
         except:
-            print("path was't found")
+            pass
 # collect smart tool holder signal
 def handle_pdata():
     def on_pdata_message(client, userdata, msg):
@@ -95,7 +99,14 @@ torque_index = var['torque_index']  # the torque index of the matrix
 scale = var['torque_scale']
 STH_interval = var['STH_interval']
 minmum_power = var['minmum_power']
+# NC = var['NCcode']
 
+with open(base_path + 'InitSTH_u.json', encoding="utf-8") as f:
+    var = json.load(f)
+TargetMac = var['target_STH_mac']
+target = ['CH1_A', 'CH1_B',	'CH2_A', 'CH2_B']
+coef_path = base_path + "RawData/Coefficient/AvailableSTH.csv"
+csv = pd.read_csv(coef_path)
 #%%
 class DetectAbnoraml:
     def __init__(self, scale:int = scale, max_time_len:int = 26):
@@ -116,44 +127,56 @@ class DetectAbnoraml:
         num_groups = n // group_size # 34256 
         if num_groups > 0:
             # Select the first column values from the first row of each group
-            first_column = data_matrix[::group_size, 0][:num_groups]
-            
-            # Reshape data_matrix to group rows, excluding the first column
+            first_column = data_matrix[::, 0]
             reshaped_matrix = data_matrix[:num_groups*group_size, 1:].reshape(num_groups, group_size, -1)
-            
             # Compute the max values for the remaining columns along the grouping axis
             max_columns = np.max(reshaped_matrix, axis=1)
-            
             # Combine the first column and the max columns
-            return np.column_stack((first_column, max_columns))
+            return np.column_stack((first_column, reshaped_matrix))
         return None
 
     def BuildBaseLines(self, ref_file: str)-> np.array:
         # sel_window: window點取max
         df = pd.read_csv(ref_file)
-        data_np = df.to_numpy()  # 342565 X 4
-        data_np[:, 1] = data_np[:, 1] * self.scale
-        # Parse the initial reference start time
-        ref_start_time = self.ParseDatetime(data_np[0][0])  # (2024,6,21,15,27,58, 916003)
-        if ref_start_time is None:             return None
+        data_np = df.to_numpy()
+        data_np = np.transpose(data_np)
+
         # Vectorized datetime parsing and time difference calculation
-        parsed_time = np.array([self.ParseDatetime(timetag[0]) for timetag in data_np]) #  342565
+        parsed_time = np.array([self.ParseDatetime(timetag) for timetag in data_np[0]])
         if None in parsed_time:        return None
-        data_np[:, 0] = np.array([(ctime - ref_start_time).total_seconds() for ctime in parsed_time])
-        return  self.DeriveGroupMax(data_np)
+        data_np[0] = np.array([(ctime - parsed_time[0]).total_seconds() for ctime in parsed_time])
+        data_np = np.transpose(data_np)
+        return data_np
+        # return  self.DeriveGroupMax(data_np)
 
     # base_df = BuildBaseLines(r'./rawdata/Fanuc-2/Ref/Case2-Milling.csv')
 #%% low power
     def Serch_Power(self, data):
-        power_data = float(data.get("Power"))
-        if power_data < minmum_power:
+        if float(data.get("Power")) < minmum_power:
             message = "{Alarm:'1'}"
             return self.Alarm(topic_alm, message)
+    def SerchMac(self, mac):
+        global TargetMac
+        try:
+            index = csv[csv['MAC'] == mac].index
+            coef = csv.loc[index, target].values[0]
+            print(coef)
+            return coef
+        except:
+            pass
+            # print(f'not this MAC coefficient')
 #%%
     def TransforTime(self, data, time_step):
         global begin
+        global TargetMac
+        global coefficient
         if begin == 0:
             begin = int(data["Packet Sequence Number"])
+        if data["MAC"] != TargetMac:
+            coefficient = self.SerchMac(data["MAC"])
+        # Count_torque = [[list(map(lambda x:x * coefficient, data["ch1"])), list(map(lambda x:x * coefficient, data["ch2"]))]]
+        # torque_data = np.linalg.norm(Count_torque, 2, 0, True)
+        
         torque_data = np.array(data.get("Torque", []))
         torque_data = torque_data * self.scale
         start_time = (int(data["Packet Sequence Number"]) - begin) * 0.3975
@@ -169,8 +192,8 @@ class DetectAbnoraml:
     def FindBaseIndex(self, raw_np, tolerance: float = STH_interval):
         index = raw_np[0][0]
         # find the range of possible timetag
-        while index > self.base_np[500, 0]:
-            index = index - self.base_np[500, 0]
+        while index > self.base_np[-1, 0]:
+            index = index - self.base_np[-1, 0]
         index = index + self.base_np[400, 0]
         indexs = np.where((self.base_np[:, 0] > index - tolerance) & (self.base_np[:, 0] < index + tolerance)) 
         return raw_np, indexs
@@ -195,7 +218,7 @@ class DetectAbnoraml:
 #%%
     def DetectCurrentState(self, data, start):
         # Initialize the state
-        state = 'Normal'  # Initial state
+        state = "{'ToolChange':1}"  # Initial state
         # Extract the relevant data slices
         data_slice = data[:, 1]                               # Torque
         ucl_slice = self.base_np[start:start + len(data), 2]  # UCL
@@ -206,12 +229,11 @@ class DetectAbnoraml:
         over_ucl = np.any(data_slice > ucl_slice)
         lower_lcl = np.any(data_slice < lcl_slice)
         if over_ucl:
-            return 'Over-UCL'
+            self.Alarm(topic_changetool, state)
+            # state = 'Over-UCL'
         elif lower_lcl:
-            return 'Lower-UCL'
-        else:
-            return state
-
+            self.Alarm(topic_changetool, state)
+            # state = 'Lower-UCL'
     # print(Compare(filter_df, start_index))
 #%%
     def PlotlyResult(self, data, start_index, sel_file, local_show, state, time_used):
@@ -220,11 +242,12 @@ class DetectAbnoraml:
 
         # Add the 'On-line' data trace
         fig.add_trace(pgo.Scatter(
-            x = np.arange(start_index + len(data)),
-            y = np.append(np.zeros(start_index), data[:, 1]),
+            x = np.arange(len(data)),
+            y = np.concatenate((np.zeros(start_index - 1), sel_file[:,1], np.zeros(len(data) - start_index + len(sel_file)))),
             mode = 'markers',
             marker = dict(color='red'),
-            name = 'On-line'
+            name = 'On-line',
+            # title = sel_file
         ))
 
         # Add the 'Simulation' data trace
@@ -256,7 +279,7 @@ class DetectAbnoraml:
 
         # Set the title and labels
         fig.update_layout(
-            title = sel_file,
+            title = 'torque',
             xaxis_title = f"Samples (per {group_size} ms)",
             yaxis_title = "Nm",
             legend = dict(font=dict(size=12)),
@@ -277,10 +300,12 @@ class DetectAbnoraml:
             return pio.to_html(fig, full_html=False)
 #%%
     def Alarm(self, topic, message):
+        global begin
+        begin = 0
         publish_client = mqtt.Client()
         publish_client.connect(P_host, 1883, 60)
         publish_client.publish(topic, message)
-        publish_client.disconnect()
+        publish_client.loop_forever()
 #%%
     def Run(self, data, id = None, local_show: bool = True):
         # record current timestamp
@@ -300,10 +325,11 @@ class DetectAbnoraml:
         print(f"The time of execution of detect abnormal is : {time_used:.03f} ms")
         print(current_state)
 
-        # return self.PlotlyResult(filter_np, start_index, local_show, current_state, time_used)
+        # return self.PlotlyResult(self.base_np, start_index, filter_np, local_show, current_state, time_used)
 #%%
 if __name__ == "__main__":
     detector = DetectAbnoraml()
+    coefficient = detector.SerchMac(TargetMac)
     # 初始化MQTT Client
     client.on_connect = on_connect
     client.on_message = on_message

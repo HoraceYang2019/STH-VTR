@@ -6,5 +6,5 @@ __pycache__/
 *.code-workspace
 
 # CNC
-CNC/config/*.dll
-CNC/jsonlog/
+SYNTEC_CNC/config/*.dll
+SYNTEC_CNC/jsonlog/

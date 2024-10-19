@@ -32,7 +32,7 @@ ConnectionFormat = tuple[ctypes.c_bool, STHComm.CommunicationModule]
 ConnectionMap = dict[Hashable, dict[str, str]]
 max_timeout: float = 180 # in sec
 
-host: str = '163.18.48.140'
+host: str = '10.0.0.103'
 portNo: int = 1883
 qos = 0
 remt_comm_topic: str = 'STH/remt/comm'
@@ -109,7 +109,6 @@ def establish_connection(parameter: ConnectionFormat,
     try_connect_time: float = time.time()
     interval_start_time = try_connect_time
     
-    # TODO
     # send comm Enable
     STHClient.publish(remt_comm_topic, '{"Func":"Enable"}', qos)
 
@@ -121,11 +120,11 @@ def establish_connection(parameter: ConnectionFormat,
             break 
            
     if not connect_timeout: # the assigned job is executed
-        # TODO
         # success communicate send ready and start (record or detect) 
         ret = STHClient.publish(sth_ready_topic, '{"Ready":"1"}', qos)
         with shared_dict['lock']:
-            shared_dict['tool_changed'] = False 
+            shared_dict['tool_changed'] = False
+            shared_dict['cycle_state'] = True 
         if shared_dict['job_mode'] == 'Reference':
             STHClient.publish(remt_recd_topic, "{'State':'1'}", qos)
         elif shared_dict['job_mode'] == 'Monitor':
@@ -134,7 +133,6 @@ def establish_connection(parameter: ConnectionFormat,
         interval_start_time: float = time.time()
 
         while time.time() - interval_start_time < est_interval:
-            # TODO
             # Tool changed or Cycle end    
             if (shared_dict['tool_changed'] == True) or (shared_dict['cycle_state'] == False):
                 with shared_dict['lock']:
@@ -145,9 +143,8 @@ def establish_connection(parameter: ConnectionFormat,
                     ret = STHClient.publish(sth_detect_topic, "{'Cmd':'End'}", qos)
                 break
             time.sleep(0.001) # wait for completion of the threads of STHComm
-    # TODO
     # normal end or timeout
-    # stop recd and comm
+    # stop record and comm
     if shared_dict['job_mode'] == 'Reference':
         ret = STHClient.publish(remt_recd_topic, "{'State':'0'}", qos)
     elif shared_dict['job_mode'] == 'Monitor':
@@ -182,14 +179,9 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
     max_timeout = jobs['Timeout'] # get max_timeout from JSON file
     del jobs['Timeout']  
 
-    # TODO
-    # wait until cycle start send
-    while shared_dict['cycle_state'] != True:
+    # wait until cycle start send and tcode change 
+    while (shared_dict['cycle_state'] != True) or (shared_dict['tool_changed'] != True):
         time.sleep(shared_dict['check_interval'])
-    
-    # # TODO
-    # # wait tcode change
-    time.sleep(5)
     
     for tool_no in jobs.keys():   # focus on different jobs by tool ID 
         # get taget mac, port, and defualt interval time by Tool ID
@@ -202,7 +194,6 @@ def runJobs(shared_dict, job_file: str = job_file_name) -> float:
             set_connection(mac,port), interval, shared_dict), 4)) 
 
         print(f'{run_time = }') 
-        # TODO
         # Reference only has 1 tool, break for loop and start merge file
         if shared_dict['job_mode'] == 'Reference':
             # merge files
@@ -233,12 +224,11 @@ def main():
         mutex = create_mutex(version) """
     # Check for existing mutex
 
-    # TODO
     # wait until job_mode send
     while shared_dict['job_mode'] == '':
         time.sleep(shared_dict['check_interval'])
    
-    mutex = create_mutex(version)
+    # mutex = create_mutex(version)
     p = STH_Jobs(job_file_name, shared_dict)   #Create an instance of class STH_Jobs
   
     print("Starting subprocess.")
@@ -248,8 +238,8 @@ def main():
     print('Main process:', os.getpid())
 
     # Release the mutex when the application exits
-    print("Releasing mutex.")
-    ctypes.windll.kernel32.ReleaseMutex(mutex)    
+    # print("Releasing mutex.")
+    # ctypes.windll.kernel32.ReleaseMutex(mutex)    
 
 #%%    Main
 if __name__ == '__main__':

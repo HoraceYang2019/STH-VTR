@@ -132,7 +132,7 @@ class CtlMotion(threading.Thread):
                     #                hostname= config_['MQTT_HOST']
                     #                )
                     self.dclass.ready_type = {'Ready': '0'}
-                else:
+                elif syntecremotecnc.READ_status()[5] == 'READY':
                     print('CycleEnd!')
                     self.dclass.cycle_start_event.clear()
                     # self.dclass.init_status_event.set()
@@ -142,7 +142,7 @@ class CtlMotion(threading.Thread):
                                    jmsg, 
                                    hostname= config_['MQTT_HOST']
                                    ) 
-                    self.dclass.ready_type = {'Ready': '0'}                       
+                    self.dclass.ready_type = {'Ready': '0'}                                      
                 machine_state =  syntecremotecnc.READ_status()[5]
             time.sleep(0.5)
     def CheckTcode(self):

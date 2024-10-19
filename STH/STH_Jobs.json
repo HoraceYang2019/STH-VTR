@@ -9,10 +9,5 @@
         "mac": "84f703cdbbaa",
         "port": 6503,
         "interval": 21600
-    },
-    "T5":{
-        "mac": "84f703ce235e",
-        "port": 6502,
-        "interval": 21600
     }
 }

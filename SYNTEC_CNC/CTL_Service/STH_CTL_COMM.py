@@ -34,6 +34,10 @@ def GetParam() -> Dict[str, Any]:
     except Exception:
         init_ext = np.array([0, 0, 0], dtype=np.float16)
     init_g54 = ConvertToFloat(syntecremotecnc.READ_work_coord_single('G54')[1])
+    try:    #NoneType
+        init_g54[0]
+    except:
+        init_g54 = np.array([0, 0, 0], dtype=np.float16)
     ovRate = syntecremotecnc.READ_spindle()
     init_spindle_ovRate = ConvertToFloat(ovRate[2])
     init_feedrate_ovRate = ConvertToFloat(ovRate[1])
@@ -66,6 +70,7 @@ def GetParam() -> Dict[str, Any]:
         init_ext[0]
     except Exception:
         init_ext = np.array([0, 0, 0], dtype=np.float16)
+        
     return {
         'NCFile': init_name ,
         'OffCoord':{'X':float(init_ext[0]),

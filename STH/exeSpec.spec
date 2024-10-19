@@ -1,5 +1,5 @@
 # pyinstaller --noconfirm --clean exeSpec.spec
-# 'STHScan' 'STHComm' 'DataProcess' 'runSTHJobs'
+# 'STHScan' 'STHComm' 'DataProcess' 'runSTHJobs' 'FileMerge'
 # pathex => packages path
 
 filename = 'DataProcess'
