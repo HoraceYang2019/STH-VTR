@@ -51,7 +51,7 @@ remt_scan_topic, remt_comm_topic, remt_pars_topic, remt_recd_topic, remt_merg_to
     pdata_topic, reload_parameter, broker_address, broker_port, record_raw_data = \
     SetParameter(usp.init) if not usp.updated_state else SetParameter(usp.updated)
 
-enable_scan, enable_comm, enable_pars, enable_merg, enable_emul = True, True, True, True, True
+enable_scan, enable_comm, enable_pars, enable_merg, enable_emul = True, True, True, False, True
 close_scan, close_comm, close_pars, close_merg, close_emul = False, False, False, False, False
 loop_scan: bool = False
 timeout: int = 10
