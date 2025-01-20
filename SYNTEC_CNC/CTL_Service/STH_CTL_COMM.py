@@ -194,7 +194,7 @@ class CtlComm(threading.Thread):
 
         cnc_status.join()
         cnc_coord.join()
-        cnc_status.join()
+        cnc_publish.join()
         cnc_timer.join()
         cnc_ready.join()
 
