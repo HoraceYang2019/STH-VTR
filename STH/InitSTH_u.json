@@ -29,7 +29,7 @@
     "trans_force": false,
     "to_csv_mode": "a",
     "parse_wait_time": 1,
-    "txt_num_in_csv": 3,
+    "txt_num_in_csv": 1000,
     "time_average": 0.02,
     "torque_ratio": [
         1.0002,

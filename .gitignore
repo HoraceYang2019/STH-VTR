@@ -1,10 +1,9 @@
-# cpython
+# 忽略 Python 快取
 __pycache__/
 
-# vscode
+# 忽略 VS Code Workspace
 .vscode/
 *.code-workspace
 
 # CNC
-SYNTEC_CNC/config/*.dll
 SYNTEC_CNC/jsonlog/

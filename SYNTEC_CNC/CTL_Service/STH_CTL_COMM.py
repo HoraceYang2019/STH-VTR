@@ -129,14 +129,27 @@ class CtlComm(threading.Thread):
                 self.dclass.buffer_index = (1 if self.dclass.buffer_index == 0 
                                             else  0)
                 data = np.array(self.dclass.buffer[self.dclass.save_index])
-                self.coord_msg: dict = {
-                    'LineNo': data[:,0].tolist(),
-                    'NowCoord': {
-                    'X': data[:,1].tolist(),
-                    'Y': data[:,2].tolist(),
-                    'Z': data[:,3].tolist(),
+                print(data)
+                print('=============')
+                if data.ndim == 2:
+                    self.coord_msg = {
+                        'LineNo': data[:, 0].tolist(),
+                        'NowCoord': {
+                            'X': data[:, 1].tolist(),
+                            'Y': data[:, 2].tolist(),
+                            'Z': data[:, 3].tolist(),
+                        }
                     }
-                }
+                else:
+                    self.coord_msg = {
+                        'LineNo': [],
+                        'NowCoord': {'X': [], 'Y': [], 'Z': []}
+                    }
+                timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                with open(config_['SAVE_DIR'] + '/NowCoord.csv', 'a') as file:
+                    # timestamp_column = np.full((data.shape[0], 1), timestamp)  # 生成時間戳記欄位
+                    # data_with_timestamp = np.hstack((timestamp_column, data))  # 合併時間欄
+                    np.savetxt(file, data, delimiter=',', fmt='%s')
                 pub_msg = json.dumps(self.coord_msg, ensure_ascii = False)
                 with open(config_['SAVE_DIR']+('/NowCoord.json'), 'w') as file:
                     json.dump(self.coord_msg, file,indent=4)  

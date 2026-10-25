@@ -6,7 +6,6 @@ pip install pypiwin32
 
 TODO:
 1. add "current_plan" in the initSTH_u.json after updating in Node-red
-2. 
 
 Usage:
   python DataProcess_x_y.py
@@ -32,6 +31,7 @@ import types
 import typing
 import sys
 import platform
+import statistics 
 
 #%%
 import STHSense as sth       # parse sensing data from STH 
@@ -41,7 +41,7 @@ import STHSync as SynSTH     # syc control of services fro STH
 # import CalToolPolar as ctp     # calculate tool polar 
 import GetCalbraCoef as gcr  # get the calbriation coefficients
 
-version: str = 'DataProcess v10.5.1'
+version: str = 'DataProcess v11.0.0'  #2024-07-01: add detrend mode and denoise, update the time tag allocation method, add the tool polar calculation control, update the log info, and other details.
 active = False
 publish_msg = None
 remote_enable = False
@@ -49,7 +49,6 @@ remote_stop = False
 func_name = 'DataProcess'
 data_places = 5  # data in 
 ms_places = 3    # time in ms
-# polar_folder = r'C:/VTR/RawData/Output/ToolPolar/' 
 if platform.system() == "Windows":
     coef_file = "C:/VTR/RawData/Source/Data/coef.csv"
 else:
@@ -101,7 +100,7 @@ def ShowMsg(topic, key, msg):
     
 #%%       
 class DataProcess(object):
-    def __init__(self, role):
+    def __init__(self, role, detrend_type):
         super().__init__()
         self.broker_addr, self.broker_port, self.log_topic, self.pdata_topic, self.source_path, \
         self.output_path, self.log_file, self.keep_data_th, self.backup_raw_file, self.save_parsed_file, \
@@ -113,11 +112,11 @@ class DataProcess(object):
         
         self.now_time: str = datetime.datetime.now().strftime('(%Y-%m-%d-%H-%M)')
         self.index_time_tag: int = 0
-        self.time_offset: np.float_ = np.float_(0)
+        self.time_offset: np.float64 = np.float64(0)
         
         self.var_list: tuple[int, 
                         int, 
-                        npt.NDArray[np.float_], 
+                        npt.NDArray[np.float64], 
                         tuple[float, float, float, float]] = (usp.init.total_ch, 
                                                               usp.init.STH_version, 
                                                               np.asarray(usp.init.calibration), 
@@ -128,7 +127,8 @@ class DataProcess(object):
         self.available_data: bool = False   
         self.disable_DP: bool = False
 
-        self.role: str = role
+        self.role: str = role  # 'master' or 'slave'
+        self.detrend_mode: str = detrend_type  # 'mode', 'constant', 'linear', 'none'
         # self.cal_tool_polar = ctp.calToolPolar()
 
 #%%
@@ -184,10 +184,61 @@ class DataProcess(object):
         return (time_diff, time_stamp) #(time difference list, txt file time list)
     
     #%%
-    def DataPreprocess(self, data: list[list[float]], coef: tuple[tuple[float, ...], tuple[float, ...]]) -> npt.NDArray[np.float_]:
+    def DataPreprocess(self, data: list[list[float]], coef: tuple[tuple[float, ...], tuple[float, ...]]) -> npt.NDArray[np.float64]:
+
+        def find_most_stable_window(x, window_size=500, step_size=50):
+            #x = pd.to_numeric(x, errors="coerce").to_numpy(dtype=float)
+            n = len(x)
+            if n == 0:
+                raise ValueError("Empty signal.")
+
+            if window_size > n:                 window_size = n
+
+            best_start = 0
+            best_end = window_size
+            best_std = np.inf
+
+            for start in range(0, n - window_size + 1, step_size):
+                end = start + window_size
+
+                w = x[start:end]
+                w = w[~np.isnan(w)]
+
+                if len(w) < 2:           continue
+
+                window_std = np.std(w)
+
+                if window_std < best_std:
+                    best_std = window_std
+                    best_start = start
+                    best_end = end
+
+            return best_start, best_end, best_std
+
+        def median_in_region(x, start, end):
+            w = x[start:end]
+            w = w[~np.isnan(w)]
+
+            if len(w) == 0:
+                return 0.0
+
+            return float(np.median(w))    
         
-        def DataDetrend(x_: npt.NDArray[np.float_], a: float, b: float) -> npt.NDArray[np.float_]:
-            x: npt.NDArray[np.float_] = detrend(Denoise.wden(x_ , 'sqtwolog', 'soft', 'mln', 2, 'db3'))
+        def DataDetrend(x_: npt.NDArray[np.float64], a: float, b: float) -> npt.NDArray[np.float64]:
+            x_denoised = Denoise.wden(x_ , 'sqtwolog', 'soft', 'mln', 2, 'db3')
+
+            match self.detrend_mode:
+                case 'median':
+                    # 1. Find baseline region automatically
+                    start, end, stable_std = find_most_stable_window(x_denoised,  window_size = 500, step_size = 50 )
+                    # 2. Compute median of baseline region
+                    x: npt.NDArray[np.float64] = x_denoised - median_in_region(x_denoised, start, end)
+                case 'constant':
+                    x: npt.NDArray[np.float64] = detrend(x_denoised, type='constant')
+                case 'linear':
+                    x: npt.NDArray[np.float64] = detrend(x_denoised, type='linear')
+                case 'none':
+                    x: npt.NDArray[np.float64] = x_denoised
             x *= a
             x += b
             return x 
@@ -202,15 +253,15 @@ class DataProcess(object):
         
     def ParseData(self, f_list: list[str], 
                   t_list: npt.NDArray[np.float64], 
-                  v_list: tuple[typing.Union[int, typing.Any], int, npt.NDArray[np.float_], tuple[tuple[float, ...], tuple[float, ...]]], 
+                  v_list: tuple[typing.Union[int, typing.Any], int, npt.NDArray[np.float64], tuple[tuple[float, ...], tuple[float, ...]]], 
                   n_folder: str, 
                   backup_raw: bool) \
-        -> tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
+        -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
         
         *variable_list, calbar_coef = v_list
         
-        data_array: npt.NDArray[np.float_] = np.empty((0, variable_list[0]), float)    #[0]: total channels
-        time_tag: npt.NDArray[np.float_] = np.array([])
+        data_array: npt.NDArray[np.float64] = np.empty((0, variable_list[0]), float)    #[0]: total channels
+        time_tag: npt.NDArray[np.float64] = np.array([])
         time_iter: float = 0.0
         
         0 if os.path.isdir(n_folder) else os.makedirs(n_folder)
@@ -218,7 +269,7 @@ class DataProcess(object):
         def Rate():
             ...
             
-        def ConvertDataSetter(*v: typing.Union[int, npt.NDArray[np.float_]]) -> typing.Callable:
+        def ConvertDataSetter(*v: typing.Union[int, npt.NDArray[np.float64]]) -> typing.Callable:
             def ConvertData(s: str) -> typing.Union[list[list[float]], None]:
                 if len(s) > 138:
                     s_split: npt.NDArray[np.str_] = np.asarray(s.split(txt_separtor))
@@ -239,7 +290,7 @@ class DataProcess(object):
                 #ch1, ch2, ch3, ch4 = DataPreprocess(zip(*s_list), t_rate)
                 data_array = np.vstack((data_array, self.DataPreprocess(SG_data, calbar_coef)))
                     
-                time_value: npt.NDArray[np.float_] = np.linspace(time_iter, len(SG_data)*self.sampling_interval, len(SG_data))
+                time_value: npt.NDArray[np.float64] = np.linspace(time_iter, len(SG_data)*self.sampling_interval, len(SG_data))
                 time_tag = np.hstack((time_tag, time_value))
                 time_iter += round(time_tag[-1], ms_places) # up to ms
             
@@ -270,16 +321,16 @@ class DataProcess(object):
         return (data_array, time_tag)
     
     #%%
-    def CalculateTorque(self, x: npt.NDArray[np.float_]):
+    def CalculateTorque(self, x: npt.NDArray[np.float64]):
         return np.linalg.norm(x, ord = 2, axis = 1, keepdims = True)
     
     #%% 
-    def AverageDataByTimetag(self, d_array: npt.NDArray[np.float_], tags: npt.NDArray[np.float_], 
+    def AverageDataByTimetag(self, d_array: npt.NDArray[np.float64], tags: npt.NDArray[np.float64], 
                              t_average: float, threshold_BX: bool) \
-        -> npt.NDArray[np.float_]:
+        -> npt.NDArray[np.float64]:
             
         global available_data
-        result_array: npt.NDArray[np.float_] = np.empty((0, d_array.shape[1] + 1), float)
+        result_array: npt.NDArray[np.float64] = np.empty((0, d_array.shape[1] + 1), float)
         def AverageValue(x):
             #return np.linalg.norm(x, 2, 0, False)
             return np.average(x)
@@ -296,7 +347,7 @@ class DataProcess(object):
 
             sample_size: int = tags[np.where(np.logical_and(time_start<tags, tags <= time_end + sample_time_gap))].size    ###update tags<time_end -> tags<=time_end
             if sample_size:    #time_index == 0 will break the while loop bc the index doesn't exist.
-                data_mean: npt.NDArray[np.float_] = np.asarray(tuple(map(AverageValue, d_array[sample_count:sample_count + sample_size, :].T)))
+                data_mean: npt.NDArray[np.float64] = np.asarray(tuple(map(AverageValue, d_array[sample_count:sample_count + sample_size, :].T)))
                 result_array = np.vstack((result_array, np.hstack((time_start, data_mean))))
         
                 time_start = time_end
@@ -392,6 +443,10 @@ class DataProcess(object):
                         
                         try:
                             data_temp, time_tag = self.ParseData(file_list, time_diff, (*self.var_list[:-1], calbar_coef), f'{self.source_path}/{self.now_time}/', self.backup_raw_file)
+                        
+                            # 新增這行：利用 NumPy 索引，直接將第 3 欄 (index 2) 與第 4 欄 (index 3) 的資料對調
+                            data_temp[:, [2, 3]] = data_temp[:, [3, 2]]
+
                         except Exception as err:
                             print(f"Unexpected {err=}, {type(err)=}")
                             #time.sleep(self.wait_time)
@@ -466,5 +521,5 @@ if __name__ == "__main__":
     # os.system('title '+ msg)
     print(msg)
 
-    p3 = DataProcess('master')
+    p3 = DataProcess('master', 'none')  # ['master', 'slave'],  ['median', 'constant', 'linear', 'none']
     p3.run()  # Start the Jobs process in the main process

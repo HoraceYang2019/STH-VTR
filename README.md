@@ -1,2 +1,12 @@
-# MisLab
-This repository is provided to researchers at MisLab for version management.
+本專案包含智慧刀把（Smart Tool Holder, STH）資料收集、訊號處理，以及 CNC 控制器資料收集相關程式。
+
+## 資料夾說明
+
+### STH
+- **用途：** 智慧刀把資料收集與處理程式。
+- **功能：** 負責智慧刀把感測資料的收集與處理。
+
+### SYNTEC_CNC
+- **用途：** 新代（SYNTEC）CNC 控制器專用程式。
+- **功能：** 負責 CNC 控制器資料的收集。
+- **執行限制：** 僅支援 32 位元環境。
