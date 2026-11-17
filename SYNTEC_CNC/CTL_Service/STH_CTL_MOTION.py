@@ -25,7 +25,8 @@ syntecremotecnc = config.ref_syntecAPi(config_['IP_ADDRESS'])
 def ConvertToStr(input_):
     return input_.decode('utf-8')
 def ConvertToFloat(input_):
-    return np.float16(input_)
+    # Preserve coordinate and tool-offset precision before JSON/CSV serialization.
+    return np.float64(input_)
 def ChangeToolFunc(changetype):
     '''
     WRITE_plc_addr:(

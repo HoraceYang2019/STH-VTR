@@ -26,18 +26,19 @@ print(syntecremotecnc.Host)
 def ConvertToStr(input_):
     return input_.decode('utf-8')
 def ConvertToFloat(input_):
-    return np.float16(input_)
+    # Preserve coordinate and tool-offset precision before JSON/CSV serialization.
+    return np.float64(input_)
 def GetParam() -> Dict[str, Any]:
     init_name = (syntecremotecnc.READ_status()[1])
     try:    #NoneType
         init_ext = ConvertToFloat(syntecremotecnc.READ_work_coord_single('EXT')[1])
     except Exception:
-        init_ext = np.array([0, 0, 0], dtype=np.float16)
+        init_ext = np.array([0, 0, 0], dtype=np.float64)
     init_g54 = ConvertToFloat(syntecremotecnc.READ_work_coord_single('G54')[1])
     try:    #NoneType
         init_g54[0]
     except:
-        init_g54 = np.array([0, 0, 0], dtype=np.float16)
+        init_g54 = np.array([0, 0, 0], dtype=np.float64)
     ovRate = syntecremotecnc.READ_spindle()
     init_spindle_ovRate = ConvertToFloat(ovRate[2])
     init_feedrate_ovRate = ConvertToFloat(ovRate[1])
@@ -69,7 +70,7 @@ def GetParam() -> Dict[str, Any]:
     try:    #NoneType
         init_ext[0]
     except Exception:
-        init_ext = np.array([0, 0, 0], dtype=np.float16)
+        init_ext = np.array([0, 0, 0], dtype=np.float64)
         
     return {
         'NCFile': init_name ,
@@ -119,7 +120,7 @@ class CtlComm(threading.Thread):
                 try:    #NoneType
                     result[1:5] = coord[:-1]
                 except Exception:
-                    result[1:5] = np.array([0, 0, 0], dtype=np.float16)
+                    result[1:5] = np.array([0, 0, 0], dtype=np.float64)
                 self.dclass.buffer[self.dclass.buffer_index].append(
                                                                 result.tolist())
     def CNCPublish(self):
