@@ -1,18 +1,12 @@
-import config
-from CTL_Service import STH_CTL_COMM, STH_CTL_MOTION, ShareVar, STH_CTL_MQTT
+# -*- coding: utf-8 -*-
+"""沿用既有檔名；只啟動 COMM 的資料採集流程。"""
+
+from CTL_Service import STH_CTL_COMM
+
+
 def main():
-    
-    # test.main()
-    s_class = ShareVar()
-    ctl_comm_thread = STH_CTL_COMM.CtlComm(s_class)
-    ctl_motion_thread = STH_CTL_MOTION.CtlMotion(s_class)
+    STH_CTL_COMM.main_calculation()
 
-    ctl_comm_thread.start()    
-    ctl_motion_thread.start()  
 
-    ctl_comm_thread.join()    
-    ctl_motion_thread.join()    
-    
 if __name__ == "__main__":
-    # 10.0.0.69
     main()

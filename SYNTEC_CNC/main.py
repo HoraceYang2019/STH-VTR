@@ -1,15 +1,12 @@
-import config
-from CTL_Service import STH_CTL_COMM, STH_CTL_MOTION, ShareVar
+# -*- coding: utf-8 -*-
+"""透過 COMM 啟動 CNC 資料採集。"""
+
+from CTL_Service import STH_CTL_COMM
+
 
 def main():
-    s_class = ShareVar()
-    ctl_comm_thread = STH_CTL_COMM.CtlComm(s_class)
-    ctl_motion_thread = STH_CTL_MOTION.CtlMotion(s_class)
+    STH_CTL_COMM.main_calculation()
 
-    ctl_comm_thread.start()    
-    ctl_motion_thread.start()  
 
-    ctl_comm_thread.join()    
-    ctl_motion_thread.join()    
 if __name__ == "__main__":
     main()
